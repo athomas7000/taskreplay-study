@@ -57,7 +57,7 @@ function Dashboard({ userId, canConfigureAccess }: { userId: string; canConfigur
   const project = projects.find(key => key === params.get('project'))
   if (project) return <section className="replay page">
     <Link className="project-back" to="/home"><ArrowLeft size={17} aria-hidden="true" /> All projects</Link>
-    <h1>{project === 'custom' ? 'Custom projects' : projectNames[project]}</h1>
+    <h1>{project === 'custom' ? 'New project' : projectNames[project]}</h1>
     <div className="panel project-workspace"><ProjectTests key={`${userId}:${project}`} project={project} userId={userId} /></div>
   </section>
   return <section className="replay page studies-overview">
@@ -65,7 +65,7 @@ function Dashboard({ userId, canConfigureAccess }: { userId: string; canConfigur
     <nav className="project-folders project-cards" aria-label="Project folders">
       {projects.map(key => <div className={`project-card project-card-${key}`} key={key}>
         <Link className="project-card-toggle" to={`/home?project=${key}`}>
-          {key === 'custom' ? <><Plus size={23} aria-hidden="true" /> Add a project</> : projectNames[key]}
+          {key === 'custom' ? <><Plus size={23} aria-hidden="true" /> New project</> : projectNames[key]}
         </Link>
         {key !== 'custom' && <div className={`project-card-preview project-card-preview-${key}`} aria-hidden="true">
           <Prototype prototype={key === 'cafe' ? cafe : studio} screen="home" readonly />
@@ -75,7 +75,7 @@ function Dashboard({ userId, canConfigureAccess }: { userId: string; canConfigur
   </section>
 }
 
-type Study = { title?: string; prompt: string; script?: string }
+type Study = { isPreset?: number; title?: string; prompt: string; script?: string }
 type StudyTester = { studyId: string; email: string }
 
 const starterScript = JSON.stringify({
@@ -173,6 +173,8 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
   const [copyStatus, setCopyStatus] = useState('')
   const [creating, setCreating] = useState(project === 'custom')
   const [title, setTitle] = useState('')
+  const [saveAsPreset, setSaveAsPreset] = useState(false)
+  const [selectedPreset, setSelectedPreset] = useState('')
   const [draft, setDraft] = useState('')
   const [scriptDraft, setScriptDraft] = useState('')
   const [preview, setPreview] = useState<Script>()
@@ -182,6 +184,7 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
   const [saving, setSaving] = useState(false)
   const [selected, setSelected] = useState<{ session: string; step?: number }>()
   const projectTests = records.filter(record => projectForScript(record.data.script) === project)
+  const savedPresets = projectTests.filter(record => record.createdBy === userId && record.data.isPreset === 1)
   const published = projectTests[0]
   const prompt = published?.data.prompt ?? presets[project][0]?.[1] ?? ''
   const sessions = groupSessions(events).filter(item => projectForScript(item.events[0]?.script) === project)
@@ -221,18 +224,21 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
     const task = draft.trim()
     if (!task || !title.trim() || saving) return
     setSaving(true)
+    setMessage('')
     try {
-      const settings = { title: title.trim(), prompt: task, script: JSON.stringify(project === "custom" ? parseScript(scriptDraft) : template) }
+      const settings = { isPreset: saveAsPreset ? 1 : 0, title: title.trim(), prompt: task, script: JSON.stringify(project === "custom" ? parseScript(scriptDraft) : template) }
       if (projectForScript(settings.script) !== project) {
-        setMessage('Choose a prototype for this folder. Custom tests need a custom script.')
+        setMessage('Use an original prototype JSON for a new project. You can publish Café and Apparel studies from their project pages.')
         return
       }
       const studyId = await createConfirmed(settings)
       setTitle('')
+      setSaveAsPreset(false)
+      setSelectedPreset('')
       setDraft('')
       setScriptDraft('')
       setTesterList(studyId)
-      setMessage('Study published. Add testers below or copy the tester link to share it.')
+      setMessage(saveAsPreset ? 'Study published and saved as a preset.' : 'Study published. Add testers below or copy the tester link to share it.')
       setCreating(false)
     } catch (error) {
       setMessage(error instanceof SyntaxError ? 'Check the JSON syntax and try again.' : 'Could not publish. Check the prototype’s screen IDs and button destinations, then try again.')
@@ -255,14 +261,24 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
     {preview && <DraftPreview prototype={preview} task={draft.trim()} onClose={() => setPreview(undefined)} />}
     {creating && <form className="panel study-setup" onSubmit={save}>
       <h3>Create a study</h3>
-      {presets[project].length > 0 && <div>
-        <label htmlFor="task-preset">Start with an example <small>(optional)</small></label>
-        <select id="task-preset" value="" onChange={event => {
-          const preset = presets[project].find(([, task]) => task === event.target.value)
-          if (preset) { setTitle(preset[0]); setDraft(preset[1]) }
+      {(presets[project].length > 0 || savedPresets.length > 0) && <div>
+        <label htmlFor="task-preset">Start from a preset <small>(optional)</small></label>
+        <select id="task-preset" value={selectedPreset} onChange={event => {
+          const key = event.target.value
+          const example = presets[project].find((_, index) => key === `example:${index}`)
+          const saved = savedPresets.find(record => key === `saved:${record.recordId}`)
+          if (example) { setTitle(example[0]); setDraft(example[1]) }
+          if (saved) {
+            setTitle(saved.data.title ?? '')
+            setDraft(saved.data.prompt)
+            if (project === 'custom') setScriptDraft(JSON.stringify(readScript(saved.data.script), null, 2))
+          }
+          setSelectedPreset(key)
+          setPreviewError('')
         }}>
-          <option value="" disabled>Choose a task</option>
-          {presets[project].map(([label, task]) => <option value={task} key={label}>{label}</option>)}
+          <option value="" disabled>Choose a preset</option>
+          {presets[project].map(([label], index) => <option value={`example:${index}`} key={label}>{label}</option>)}
+          {savedPresets.map(record => <option value={`saved:${record.recordId}`} key={record.recordId}>{record.data.title}</option>)}
         </select>
       </div>}
       <div>
@@ -290,6 +306,13 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
           <button className="secondary" type="button" onClick={openDraftPreview}>Preview prototype</button>
           {previewError && <p role="alert">{previewError}</p>}
         </div>
+      </div>
+      <div>
+        <label htmlFor="save-study-preset">
+          <input id="save-study-preset" className="mr-2" style={{ width: 'auto' }} type="checkbox" checked={saveAsPreset} onChange={event => setSaveAsPreset(event.target.checked)} aria-describedby="study-preset-hint" />
+          Save as a preset
+        </label>
+        <p id="study-preset-hint">When you publish, save the study name, task, and prototype to reuse in this project.</p>
       </div>
       <footer className="form-row">
         <p>Publish to get a shareable link and start adding testers.</p>

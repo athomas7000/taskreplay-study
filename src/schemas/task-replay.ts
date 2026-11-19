@@ -27,6 +27,7 @@ export const studySchema: CollectionSchema = {
   name: 'study',
   columns: [
     { name: 'title', storage: 'text', interpretation: 'plain' },
+    { name: 'isPreset', storage: 'number', interpretation: 'plain' },
     { name: 'prompt', storage: 'text', interpretation: 'plain' },
     { name: 'script', storage: 'text', interpretation: 'plain' },
   ],
