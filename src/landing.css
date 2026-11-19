@@ -58,7 +58,7 @@
   .taskreplay-landing h1 { text-wrap: initial; }
 }
 @media (max-width: 410px) {
-  .landing-nav nav > a.primary { display: none; }
+  .landing-nav { flex-wrap: wrap; }
   .landing-demo-grid { grid-template-columns: minmax(7.1rem, .8fr) minmax(0, 1.2fr); }
   .landing-events, .landing-preview { padding: .45rem; }
   .landing-preview .matcha-header { padding-inline: .45rem; }

@@ -14,13 +14,19 @@ export default function StudyPage() {
   const { isSignedIn, user } = useAuthProfileReady({ requireUser: true })
   if (!isSignedIn) return <section className="replay study-welcome">
     <div className="study-welcome-copy">
-      <p className="study-welcome-brand"><CirclePlay size={21} aria-hidden="true" /> TaskReplay Study</p>
-      <h1>Find the friction. <em>Replay the moment.</em></h1>
-      <p>Publish a usability task, watch testers work through it, and review the steps where they got stuck.</p>
+      <p className="study-welcome-brand"><CirclePlay size={21} aria-hidden="true" /> Manager View</p>
+      <h1>See where customers <em>get stuck.</em></h1>
+      <p>See where customers hesitate or backtrack before you ship a change. Give testers a task and watch what they do.</p>
       <div className="study-welcome-actions">
-        <button className="primary" type="button" onClick={() => setSignIn(true)}>Sign in to Study <ArrowRight size={16} aria-hidden="true" /></button>
+        <button className="primary" type="button" onClick={() => setSignIn(true)}>Sign up / Sign in <ArrowRight size={16} aria-hidden="true" /></button>
         <a href="#sample-replay">Try a sample replay</a>
       </div>
+      <p className="role-auth-note">Continue with Google or GitHub. Use email and password for an existing demo account. Manager access is granted by the app owner.</p>
+      <ol className="role-steps" aria-label="How Manager View works">
+        <li><strong>Publish a task.</strong> Choose a project and write what the tester should try.</li>
+        <li><strong>Share the link.</strong> Watch the tester’s steps arrive as they happen.</li>
+        <li><strong>Review the replay.</strong> Find the step that caused trouble and decide what to change.</li>
+      </ol>
     </div>
     <SampleReplay />
     {signIn && <AuthOverlay onClose={() => setSignIn(false)} />}

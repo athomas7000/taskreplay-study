@@ -9,8 +9,12 @@ export default function Landing() {
   return <div className="replay landing taskreplay-landing" data-testid="static-landing">
     <Seo {...seo} path="/" />
     <header className="landing-nav">
-      <div className="landing-brand"><CirclePlay size={24} aria-hidden="true" /> TaskReplay</div>
-      <nav aria-label="Get started"><Link to="/test">Join as a tester</Link><Link className="primary" to="/home">Study dashboard <ArrowRight size={15} aria-hidden="true" /></Link></nav>
+      <Link className="landing-brand" to="/"><CirclePlay size={24} aria-hidden="true" /> TaskReplay</Link>
+      <nav aria-label="Main navigation"><Link to="/home">Manager View</Link><Link to="/test">Tester View</Link></nav>
+      <div className="site-auth-actions">
+        <Link to="/home?auth=login">Log in</Link>
+        <Link className="site-sign-up" to="/home?auth=signup">Sign up</Link>
+      </div>
     </header>
     <main className="landing-grid">
       <section className="landing-intro">
@@ -18,7 +22,7 @@ export default function Landing() {
         <h1>See where testers <em>get stuck.</em></h1>
         <p className="landing-description">Run a study, follow clicks live, and replay the moment someone takes a wrong turn.</p>
         <div className="landing-cta">
-          <Link className="primary" to="/home">Open study dashboard <ArrowRight size={17} aria-hidden="true" /></Link>
+          <Link className="primary" to="/home">Open Manager View <ArrowRight size={17} aria-hidden="true" /></Link>
           <a href="#sample-replay">Try a sample replay <ArrowDown size={15} aria-hidden="true" /></a>
         </div>
       </section>

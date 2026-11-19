@@ -17,7 +17,7 @@ export default function TesterPage() {
   if (!isSignedIn || sampleOpen) return <>
     <SampleTester key={project} initial={project === 'apparel' ? 'apparel' : 'cafe'}
       onContinue={isSignedIn ? () => setSampleOpen(false) : () => setSignIn(true)}
-      continueLabel={isSignedIn ? 'Back to study test' : 'Sign in to participate'} />
+      continueLabel={isSignedIn ? 'Back to study test' : 'Sign up / Sign in'} />
     {signIn && !isSignedIn && <AuthOverlay onClose={() => setSignIn(false)} />}
   </>
   return <RecordedTester key={params.toString()} onSample={() => setSampleOpen(true)} />
@@ -45,9 +45,14 @@ function SampleTester({ initial, onContinue, continueLabel }: {
 
   return <section className="replay tester-sample">
     <div className="tester-sample-intro">
-      <p className="eyebrow">PRACTICE MODE</p>
-      <h1>Try a usability test.</h1>
-      <p>Pick a sample and use the prototype to complete the task. Practice runs stay in this tab.</p>
+      <p className="eyebrow">Tester View</p>
+      <h1>Help make an app <em>easier to use.</em></h1>
+      <p>Try a task the way you normally would. Where you pause or go back helps the team understand what needs to change.</p>
+      <ol className="role-steps" aria-label="How Tester View works">
+        <li><strong>Read the task.</strong> A study link takes you to the task you’ve been asked to try.</li>
+        <li><strong>Use the prototype.</strong> Pick a sample below to practice without an account.</li>
+        <li><strong>Complete the task.</strong> Study runs share your actions with the manager. Practice runs stay in this tab.</li>
+      </ol>
       <div className="tester-sample-options" role="group" aria-label="Sample prototypes">
         <button type="button" aria-pressed={example === 'cafe'} onClick={() => { setExample('cafe'); reset() }}><Coffee size={17} aria-hidden="true" /> Deep Space Café</button>
         <button type="button" aria-pressed={example === 'apparel'} onClick={() => { setExample('apparel'); reset() }}><ShoppingBag size={17} aria-hidden="true" /> DeepSpace Apparel</button>
@@ -61,6 +66,7 @@ function SampleTester({ initial, onContinue, continueLabel }: {
         <button className="primary" type="button" onClick={onContinue}>{continueLabel} <ArrowRight size={16} aria-hidden="true" /></button>
         <button className="secondary" type="button" onClick={reset} disabled={path.length === 1 && !actions.length}><RotateCcw size={15} aria-hidden="true" /> Start over</button>
       </div>
+      {continueLabel === 'Sign up / Sign in' && <p className="role-auth-note">Continue with Google or GitHub. Use email and password for an existing demo account.</p>}
     </div>
     <div className="tester-sample-preview">
       <Prototype prototype={prototype} screen={screen} actions={actions}

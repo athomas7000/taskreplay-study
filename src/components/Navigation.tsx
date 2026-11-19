@@ -9,9 +9,9 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { AuthOverlay, useAuthProfileReady, signOut } from 'deepspace'
-import { ChevronDown, LogOut, Menu, X } from 'lucide-react'
+import { ChevronDown, CirclePlay, LogOut, Menu, X } from 'lucide-react'
 import { APP_NAME } from '../constants'
 import type { Role } from '../constants'
 import { nav } from '../nav'
@@ -32,7 +32,19 @@ export default function Navigation() {
   const { isLoaded, isSignedIn, user, userLoading } = useAuthProfileReady({ requireUser: true })
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>()
+  const requestedAuth = searchParams.get('auth')
+  const activeAuth = authMode ?? (requestedAuth === 'login' || requestedAuth === 'signup' ? requestedAuth : undefined)
+
+  function closeAuth() {
+    setAuthMode(undefined)
+    if (searchParams.has('auth')) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('auth')
+      setSearchParams(next, { replace: true })
+    }
+  }
 
   const profileReady = !isSignedIn || (!userLoading && !!user)
   const userRole = (user?.role ?? 'anonymous') as Role | 'anonymous'
@@ -69,9 +81,9 @@ export default function Navigation() {
 
   return (
     <>
-      <nav data-testid="app-navigation" className="border-b border-border bg-background">
-        <div className="mx-auto flex h-12 max-w-7xl items-center gap-4 px-4">
-          <Link to="/home" className="text-sm font-semibold text-foreground">
+      <nav data-testid="app-navigation" className="app-site-nav">
+        <div className="app-site-nav-row">
+          <Link to="/" className="landing-brand"><CirclePlay size={24} aria-hidden="true" />
             {APP_NAME}
           </Link>
 
@@ -133,13 +145,10 @@ export default function Navigation() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <button
-              data-testid="nav-sign-in-button"
-              onClick={() => setShowAuthModal(true)}
-              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
-            >
-              Sign in
-            </button>
+            <div className="site-auth-actions">
+              <button type="button" data-testid="nav-sign-in-button" onClick={() => setAuthMode('login')}>Log in</button>
+              <button type="button" className="site-sign-up" onClick={() => setAuthMode('signup')}>Sign up</button>
+            </div>
           )}
 
           <button
@@ -159,7 +168,9 @@ export default function Navigation() {
         )}
       </nav>
 
-      {showAuthModal && <AuthOverlay onClose={() => setShowAuthModal(false)} />}
+      {activeAuth && !isSignedIn && <AuthOverlay onClose={closeAuth}
+        title={activeAuth === 'signup' ? 'Create your TaskReplay account' : 'Log in to TaskReplay'}
+        description={activeAuth === 'signup' ? 'Use Google or GitHub to get started.' : 'Continue with Google, GitHub, or your demo account.'} />}
     </>
   )
 }

@@ -137,3 +137,28 @@
 .published-test-list li + li { border-top: 1px solid var(--line); }
 .published-test-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .55rem; font-size: .83rem; }
 .published-test-actions a { color: #145340; text-decoration: underline; }
+
+.app-site-nav { border-bottom: 1px solid #dce3d8; background: #f7f8f3; color: #182b27; }
+.app-site-nav-row {
+  display: flex;
+  min-height: 4.5rem;
+  align-items: center;
+  gap: clamp(.5rem, 2vw, 1.3rem);
+  padding: .75rem clamp(1rem, 5vw, 5rem);
+}
+.app-site-nav .landing-brand { display: flex; align-items: center; gap: .65rem; white-space: nowrap; }
+.role-steps { display: grid; gap: .6rem; margin: 1rem 0; padding-left: 1.25rem; list-style: decimal; color: #405b51; font-size: .9rem; line-height: 1.45; }
+.role-steps strong { color: #182b27; }
+.replay .role-auth-note { margin: .75rem 0; font-size: .8rem; }
+.tester-sample h1 em { color: #267457; }
+.site-auth-actions { display: flex; align-items: center; gap: clamp(.4rem, 1.5vw, .8rem); white-space: nowrap; font-size: .86rem; font-weight: 650; }
+.site-auth-actions > :first-child { padding: .45rem .2rem; }
+.site-auth-actions > :first-child:hover { text-decoration: underline; }
+.site-sign-up { padding: .52rem .8rem; border-radius: .55rem; background: #145340; color: #fff; }
+.site-sign-up:hover { background: #104635; }
+@media (max-width: 480px) {
+  .taskreplay-landing .landing-nav { flex-wrap: wrap; gap: .55rem; }
+  .taskreplay-landing .landing-nav nav { order: 3; width: 100%; }
+  .app-site-nav-row { gap: .38rem; padding-inline: .65rem; }
+  .app-site-nav .landing-brand { gap: .3rem; font-size: 1rem; }
+}
