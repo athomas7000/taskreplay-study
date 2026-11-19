@@ -3,7 +3,8 @@
  * because (protected)/_layout.tsx already wraps the subtree in <AuthGate>.
  */
 
-import { signOut, useUser, useUsers } from 'deepspace'
+import { useState, type FormEvent } from 'react'
+import { signOut, useMutations, useQuery, useUser, useUsers } from 'deepspace'
 import { Button } from '@/components/ui'
 import { STUDY_MANAGER_ROLE } from '../../../lib/study-roles'
 
@@ -16,22 +17,12 @@ export default function SettingsPage() {
     // stay transparent and inherit it.
     <div className="min-h-full text-foreground">
       <div className="mx-auto max-w-2xl px-6 py-20">
-        <h1 className="mb-12 text-4xl font-bold tracking-tight">Settings</h1>
+        <h1 className="mb-12 text-4xl font-bold tracking-tight">Profile</h1>
 
         <section className="rounded-lg border border-border bg-card p-6">
           <h2 className="mb-4 text-lg font-semibold">Your account</h2>
 
-          <dl className="space-y-3 text-sm">
-            <div>
-              <dt className="text-muted-foreground">Name</dt>
-              <dd className="text-foreground">{user?.name ?? '—'}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Email</dt>
-              <dd className="text-foreground">{user?.email ?? '—'}</dd>
-            </div>
-          </dl>
-
+          {user && <ProfileForm key={user.id} id={user.id} name={user.name ?? ''} email={user.email ?? ''} />}
           <Button variant="secondary" className="mt-6" onClick={() => signOut()}>
             Sign out
           </Button>
@@ -40,6 +31,40 @@ export default function SettingsPage() {
       </div>
     </div>
   )
+}
+
+function ProfileForm({ id, name, email }: { id: string; name: string; email: string }) {
+  const { records, status } = useQuery<{ displayName?: string }>('users', { where: { recordId: id } })
+  const { putConfirmed } = useMutations<{ displayName: string }>('users')
+  const [draft, setDraft] = useState<string>()
+  const [saving, setSaving] = useState(false)
+  const [feedback, setFeedback] = useState('')
+  const currentName = records.find(item => item.recordId === id)?.data.displayName || name
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const displayName = draft?.trim()
+    if (!displayName || saving) return
+    setSaving(true)
+    try {
+      await putConfirmed(id, { displayName })
+      setFeedback('Profile saved.')
+    } catch {
+      setFeedback('Could not save your profile. Try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return <form onSubmit={save} className="space-y-3 text-sm">
+    <label htmlFor="profile-name" className="block font-semibold">Display name</label>
+    <input id="profile-name" className="w-full rounded-md border border-input bg-background p-2" maxLength={60} required
+      value={draft ?? currentName} onChange={event => { setDraft(event.target.value); setFeedback('') }} />
+    <p><strong>Email</strong><br />{email || '—'}</p>
+    <Button type="submit" disabled={saving || status !== 'ready' || !draft?.trim() || draft.trim() === currentName}>Save changes</Button>
+    {status === 'error' && <p role="alert">Could not load your profile.</p>}
+    {feedback && <p role="status">{feedback}</p>}
+  </form>
 }
 
 function ReviewerAccess() {

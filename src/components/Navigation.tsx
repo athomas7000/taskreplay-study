@@ -9,9 +9,9 @@
  */
 
 import { useState } from 'react'
-import { Link, useLocation, useSearchParams } from 'react-router-dom'
-import { AuthOverlay, useAuthProfileReady, signOut } from 'deepspace'
-import { ChevronDown, CirclePlay, LogOut } from 'lucide-react'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { AuthOverlay, useAuthProfileReady, useQuery, signOut } from 'deepspace'
+import { ChevronDown, CirclePlay, LogOut, UserRound } from 'lucide-react'
 import { APP_NAME } from '../constants'
 import type { Role } from '../constants'
 import { nav } from '../nav'
@@ -31,6 +31,9 @@ import {
 export default function Navigation() {
   const { isLoaded, isSignedIn, user, userLoading } = useAuthProfileReady({ requireUser: true })
   const location = useLocation()
+  const navigate = useNavigate()
+  const { records: profiles } = useQuery<{ displayName?: string }>('users', { where: { recordId: user?.id ?? '' } })
+  const displayName = profiles.find(profile => profile.recordId === user?.id)?.data.displayName || user?.name || user?.email
   const [searchParams, setSearchParams] = useSearchParams()
   const [authMode, setAuthMode] = useState<'login' | 'signup'>()
   const requestedAuth = searchParams.get('auth')
@@ -102,14 +105,14 @@ export default function Navigation() {
                     <Avatar className="h-6 w-6 ring-1 ring-inset ring-border">
                       <AvatarImage src={user.imageUrl ?? undefined} referrerPolicy="no-referrer" />
                       <AvatarFallback className="text-[11px]">
-                        {(user.name?.[0] ?? user.email?.[0] ?? '?').toUpperCase()}
+                        {(displayName?.[0] ?? '?').toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <span
                       data-testid="nav-user-name"
                       className="hidden max-w-[140px] truncate text-foreground sm:inline"
                     >
-                      {user.name || user.email}
+                      {displayName}
                     </span>
                     <ChevronDown
                       className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-150 group-data-[popup-open]:rotate-180"
@@ -121,7 +124,7 @@ export default function Navigation() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="truncate font-medium text-foreground">
-                    {user.name || 'Signed in'}
+                    {displayName || 'Signed in'}
                   </div>
                   <div
                     data-testid="nav-user-email"
@@ -131,6 +134,10 @@ export default function Navigation() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/settings')}>
+                  <UserRound aria-hidden />
+                  Profile
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => signOut()}>
                   <LogOut aria-hidden />
                   Sign out

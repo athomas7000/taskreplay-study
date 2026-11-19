@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, CirclePlay, Plus } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AuthOverlay, useAuthProfileReady, useMutations, usePresenceRoom, useQuery } from 'deepspace'
 import { Prototype } from '../../components/Prototype'
+import { Button, Modal } from '../../components/ui'
 import { SampleReplay } from '../../components/SampleReplay'
 import { defaultPrompt, findFriction, groupSessions, outcome, shortestCompletedPath, type Event } from '../../lib/replay'
 import { cafe, studio, defaultScript, isCafePrototype, parseScript, projectForScript, projectNames, readScript, type Project } from '../../lib/prototypes'
@@ -33,7 +34,7 @@ export default function StudyPage() {
   </section>
   if (!user) return <section className="replay page"><p>Loading your profile…</p></section>
   if (!canManageStudy(user.role)) return <section className="replay page"><h1>Study dashboard</h1><p>The app administrator manages this study.</p><Link className="primary" to="/test">Go to tester view</Link></section>
-  return <Dashboard canConfigureAccess={user.role === 'admin'} />
+  return <Dashboard userId={user.id} canConfigureAccess={user.role === 'admin'} />
 }
 
 const projects = ['cafe', 'apparel', 'custom'] as const
@@ -51,13 +52,13 @@ const presets = {
   custom: [],
 } as const
 
-function Dashboard({ canConfigureAccess }: { canConfigureAccess: boolean }) {
+function Dashboard({ userId, canConfigureAccess }: { userId: string; canConfigureAccess: boolean }) {
   const [params] = useSearchParams()
   const project = projects.find(key => key === params.get('project'))
   if (project) return <section className="replay page">
     <Link className="project-back" to="/home"><ArrowLeft size={17} aria-hidden="true" /> All projects</Link>
     <h1>{project === 'custom' ? 'Custom projects' : projectNames[project]}</h1>
-    <div className="panel project-workspace"><ProjectTests key={project} project={project} /></div>
+    <div className="panel project-workspace"><ProjectTests key={`${userId}:${project}`} project={project} userId={userId} /></div>
   </section>
   return <section className="replay page">
     <header className="page-heading"><h1>Study dashboard</h1>{canConfigureAccess && <Link className="secondary" to="/settings">Reviewer access</Link>}</header>
@@ -75,10 +76,19 @@ function Dashboard({ canConfigureAccess }: { canConfigureAccess: boolean }) {
   </section>
 }
 
-function ProjectTests({ project }: { project: Project }) {
+function ProjectTests({ project, userId }: { project: Project; userId: string }) {
   const { records, status } = useQuery<{ prompt: string; script?: string }>('study', { orderBy: 'createdAt', orderDir: 'desc' })
   const { records: events, status: eventsStatus } = useQuery<Event>('replay_events', { orderBy: 'createdAt', orderDir: 'desc' })
   const { createConfirmed } = useMutations<{ prompt: string; script?: string }>('study')
+  const guideKey = `taskreplay:project-guide:${userId}:${project}`
+  const [guideStep, setGuideStep] = useState<number | null>(() => {
+    if (project === 'custom') return null
+    try { return localStorage.getItem(guideKey) ? null : 0 } catch { return 0 }
+  })
+  function closeGuide() {
+    try { localStorage.setItem(guideKey, 'seen') } catch { /* Continue if browser storage is unavailable. */ }
+    setGuideStep(null)
+  }
   const [copyStatus, setCopyStatus] = useState('')
   const [creating, setCreating] = useState(project === 'custom')
   const [draft, setDraft] = useState<string>()
@@ -132,8 +142,13 @@ function ProjectTests({ project }: { project: Project }) {
   return <section className="project-tests">
     <header className="page-heading">
       <h2>Usability tests</h2>
+      <div>
+      {project !== 'custom' && <button className="secondary" type="button" onClick={() => setGuideStep(0)}>Project guide</button>}
       <button className="primary" type="button" onClick={() => { setCreating(!creating); setMessage('') }}>{creating ? 'Close setup' : '+ New usability test'}</button>
+    </div>
     </header>
+    {guideStep !== null && <ProjectGuide project={project} step={guideStep} onStep={setGuideStep}
+      onSkip={closeGuide} onSetup={() => { closeGuide(); setDraft(presets[project][0]?.[1]); setCreating(true) }} />}
     {projectTests.length > 0 && <details className="study-folder" open>
       <summary>Published tests</summary>
       <ul className="published-test-list">{projectTests.map(record => {
@@ -207,4 +222,36 @@ function ProjectTests({ project }: { project: Project }) {
 function SessionPresence({ id }: { id: string }) {
   const { peers, connected } = usePresenceRoom(`replay:${id}`)
   return <p className="presence">{connected && peers.some(peer => peer.state.testing === true) ? '● Tester online' : '○ Tester offline'}</p>
+}
+
+function ProjectGuide({ project, step, onStep, onSkip, onSetup }: {
+  project: Project
+  step: number
+  onStep: (step: number) => void
+  onSkip: () => void
+  onSetup: () => void
+}) {
+  const example = project === 'cafe' ? 'Reorder a matcha' : 'Add a tee and crewneck to the cart'
+  const steps = [
+    { title: 'Want a quick walkthrough?', description: `See how to set up and review a usability test for ${projectNames[project]}.` },
+    { title: 'Choose and publish a task', description: `Start with “${example}” or write your own. Publish it to generate a tester link.` },
+    { title: 'Share the tester link', description: 'Open the link with the tester account in another browser profile. The manager can watch the actions arrive as the tester completes the task.' },
+    { title: 'Replay and review', description: 'Select a test run, then click a timeline step to replay it. Review the study findings after more testers finish.' },
+  ]
+  const current = steps[step]
+  const last = step === steps.length - 1
+  return <Modal open onClose={onSkip}>
+    <Modal.Header>
+      <p className="text-sm font-semibold text-primary">{projectNames[project]} guide{step > 0 && ` · ${step} of ${steps.length - 1}`}</p>
+      <Modal.Title>{current.title}</Modal.Title>
+      <Modal.Description>{current.description}</Modal.Description>
+    </Modal.Header>
+    <Modal.Footer>
+      <Button type="button" variant="secondary" onClick={onSkip}>Skip for now</Button>
+      {step > 0 && <Button type="button" variant="secondary" onClick={() => onStep(step - 1)}>Back</Button>}
+      <Button type="button" onClick={last ? onSetup : () => onStep(step + 1)}>
+        {last ? 'Set up this test' : step === 0 ? 'Show me around' : 'Next'}
+      </Button>
+    </Modal.Footer>
+  </Modal>
 }
