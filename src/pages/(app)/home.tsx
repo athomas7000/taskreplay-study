@@ -5,7 +5,7 @@ import { AuthOverlay, useAuthProfileReady, useMutations, usePresenceRoom, useQue
 import { Prototype } from '../../components/Prototype'
 import { Button, Modal } from '../../components/ui'
 import { SampleReplay } from '../../components/SampleReplay'
-import { defaultPrompt, findFriction, groupSessions, outcome, shortestCompletedPath, type Event } from '../../lib/replay'
+import { defaultPrompt, findFriction, groupSessions, outcome, sessionsForStudy, shortestCompletedPath, type Event } from '../../lib/replay'
 import { cafe, studio, defaultScript, isCafePrototype, parseScript, projectForScript, projectNames, readScript, type Project, type Script } from '../../lib/prototypes'
 import { canManageStudy } from '../../lib/study-roles'
 import '../../replay.css'
@@ -182,19 +182,23 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
   const [testerList, setTesterList] = useState<string>()
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [resultsStudy, setResultsStudy] = useState<string>()
   const [selected, setSelected] = useState<{ session: string; step?: number }>()
   const projectTests = records.filter(record => projectForScript(record.data.script) === project)
   const savedPresets = projectTests.filter(record => record.createdBy === userId && record.data.isPreset === 1)
   const published = projectTests[0]
-  const prompt = published?.data.prompt ?? presets[project][0]?.[1] ?? ''
-  const sessions = groupSessions(events).filter(item => projectForScript(item.events[0]?.script) === project)
+  const resultsRecord = resultsStudy === '' ? undefined : projectTests.find(record => record.recordId === resultsStudy) ?? published
+  const prompt = resultsRecord?.data.prompt ?? presets[project][0]?.[1] ?? ''
+  const projectSessions = groupSessions(events).filter(item => projectForScript(item.events[0]?.script) === project)
+  const sessions = sessionsForStudy(projectSessions, resultsRecord?.recordId)
   const session = sessions.find(item => item.key === selected?.session)
   const current = session?.events.find(event => event.step === selected?.step) ?? session?.events.at(-1)
   const template = project === 'apparel' ? studio : cafe
-  const script = published?.data.script ?? (project === 'apparel' ? JSON.stringify(studio) : defaultScript)
+  const script = resultsRecord?.data.script ?? (project === 'apparel' ? JSON.stringify(studio) : defaultScript)
   const activePrototype = readScript(script)
   const replayPrototype = readScript(session?.events[0].script)
   const { finding, total } = findFriction(sessions, prompt, script)
+  const completed = sessions.filter(({ events }) => outcome(events) === 'Completed').length
   const successfulPath = shortestCompletedPath(sessions, prompt, script)
 
   function reviewEvidence(key: string, screen: string) {
@@ -238,6 +242,8 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
       setDraft('')
       setScriptDraft('')
       setTesterList(studyId)
+      setResultsStudy(studyId)
+      setSelected(undefined)
       setMessage(saveAsPreset ? 'Study published and saved as a preset.' : 'Study published. Add testers below or copy the tester link to share it.')
       setCreating(false)
     } catch (error) {
@@ -344,6 +350,16 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
       })}</ul>
       {copyStatus && <p role="status">{copyStatus}</p>}
     </details>}
+    {projectTests.length > 0 && <div className="panel task">
+      <label htmlFor="study-results-select">Study to review</label>
+      <select id="study-results-select" value={resultsRecord?.recordId ?? ''} onChange={event => {
+        setResultsStudy(event.target.value)
+        setSelected(undefined)
+      }}>
+        {projectTests.map(record => <option key={record.recordId} value={record.recordId}>{record.data.title || record.data.prompt}</option>)}
+        <option value="">Runs without a study ID</option>
+      </select>
+    </div>}
     <div className="dashboard project-workspace-grid">
       <section className="panel">
         <h2>Test runs</h2>
@@ -369,13 +385,14 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
     </div>
     <section className="panel results">
       <h2>Study results</h2>
-      <p>{total} finished {total === 1 ? 'session' : 'sessions'} for the current task prompt.</p>
-      {successfulPath.length > 0 && <p><strong>Shortest observed route without backtracking</strong><br />{successfulPath.map(event => event.action).join(" → ")}</p>}
-      {finding ? <>
+      <p>{resultsRecord ? `${completed} of ${sessions.length} recorded runs completed the task.` : 'These runs are available for replay. Study-specific results appear after you select a published study.'}</p>
+      {resultsRecord && <p>{total} finished {total === 1 ? 'session' : 'sessions'} included in the findings.</p>}
+      {resultsRecord && successfulPath.length > 0 && <p><strong>Shortest observed route without backtracking</strong><br />{successfulPath.map(event => event.action).join(" → ")}</p>}
+      {resultsRecord && (finding ? <>
         <strong>{finding.sessions.length} of {total} finished sessions backtracked from {activePrototype.screens[finding.screen]?.title}.</strong>
         <p><strong>Recommended next step. </strong>{isCafePrototype(activePrototype) && finding.screen === 'orders' ? 'Try adding a Reorder button to Past Orders and run another round.' : 'Review what testers saw here before deciding what to change.'}</p>
         {finding.sessions.map(key => <button className="secondary" key={key} onClick={() => reviewEvidence(key, finding.screen)}>Review test run {sessions.length - sessions.findIndex(item => item.key === key)}</button>)}
-      </> : <p>A finding appears when two finished sessions backtrack from the same screen.</p>}
+      </> : <p>A finding appears when two finished sessions backtrack from the same screen.</p>)}
     </section>
   </section>
 }

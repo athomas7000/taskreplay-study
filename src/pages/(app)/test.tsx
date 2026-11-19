@@ -94,7 +94,7 @@ function RecordedTester({ onSample, preview = false }: { onSample: () => void; p
   const testId = params.get('test')
   const { records, status } = useQuery<{ prompt: string; script?: string }>('study', { orderBy: 'createdAt', orderDir: 'desc' })
   const { createConfirmed } = useMutations<Event>('replay_events')
-  const [run, setRun] = useState<{ id: string; prompt: string; step: number; script: string; path: string[]; actions: string[] }>()
+  const [run, setRun] = useState<{ id: string; studyId?: string; prompt: string; step: number; script: string; path: string[]; actions: string[] }>()
   const [screen, setScreen] = useState('home')
   const [finished, setFinished] = useState(false)
   const [editUntil, setEditUntil] = useState(0)
@@ -126,10 +126,11 @@ function RecordedTester({ onSample, preview = false }: { onSample: () => void; p
     setError('')
     const id = run?.id ?? crypto.randomUUID()
     const step = (run?.step ?? -1) + 1
+    const studyId = run ? run.studyId : published?.recordId
     try {
-      if (!preview) await createConfirmed({ sessionId: id, step, action, from: screen, screen: destination, prompt, script: step === 0 ? script : undefined })
+      if (!preview) await createConfirmed({ sessionId: id, studyId, step, action, from: screen, screen: destination, prompt, script: step === 0 ? script : undefined })
       setScreen(destination)
-      setRun({ id, prompt, step, path, script, actions: [...(run?.actions ?? []), action] })
+      setRun({ id, studyId, prompt, step, path, script, actions: [...(run?.actions ?? []), action] })
       setFinished(destination === 'done' || action === 'Ended session')
       setEditUntil(action === 'Confirm Pickup' && cafeOrder || action === 'Place order' && apparelOrder
         ? Date.now() + 30_000 : 0)

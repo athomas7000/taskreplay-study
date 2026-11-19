@@ -2,6 +2,7 @@ export const defaultPrompt = 'Reorder your usual matcha for pickup at 12:30 PM.'
 
 export type Event = {
   sessionId: string
+  studyId?: string
   step: number
   action: string
   screen: string
@@ -24,6 +25,10 @@ export function groupSessions(records: readonly { createdBy?: string; data: Even
     key,
     events: events.sort((a, b) => a.step - b.step),
   }))
+}
+
+export function sessionsForStudy(sessions: Session[], studyId?: string) {
+  return sessions.filter(session => (session.events[0]?.studyId || undefined) === studyId)
 }
 
 export function outcome(events: Event[]) {

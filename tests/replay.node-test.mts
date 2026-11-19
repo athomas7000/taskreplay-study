@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { findFriction, groupSessions, shortestCompletedPath, type Event } from '../src/lib/replay.ts'
+import { findFriction, groupSessions, shortestCompletedPath, sessionsForStudy, type Event } from '../src/lib/replay.ts'
 import { cafe, studio, parseScript } from '../src/lib/prototypes.ts'
 
 const prompt = 'Reorder your matcha'
@@ -33,4 +33,16 @@ test('both built-in scripts load and broken destinations are rejected', () => {
   assert.equal(parseScript(script).name, cafe.name)
   assert.equal(parseScript(JSON.stringify(studio)).name, studio.name)
   assert.throws(() => parseScript(script.replace('["Past Orders","orders"]', '["Past Orders","missing"]')))
+})
+
+test('isolates published studies that reuse the same task and prototype', () => {
+  const event: Event = { sessionId: 'one', step: 0, action: 'Started session', screen: 'home', from: 'home', prompt: 'Same task', script: '{}' }
+  const sessions = groupSessions([
+    { data: { ...event, studyId: 'first' } },
+    { data: { ...event, studyId: 'second', sessionId: 'two' } },
+    { data: { ...event, sessionId: 'legacy' } },
+  ])
+  assert.deepEqual(sessionsForStudy(sessions, 'first').map(session => session.events[0].sessionId), ['one'])
+  assert.deepEqual(sessionsForStudy(sessions, 'second').map(session => session.events[0].sessionId), ['two'])
+  assert.deepEqual(sessionsForStudy(sessions).map(session => session.events[0].sessionId), ['legacy'])
 })

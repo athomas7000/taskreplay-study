@@ -8,6 +8,7 @@ export const replayEventsSchema: CollectionSchema = {
   name: 'replay_events',
   columns: [
     { name: 'sessionId', storage: 'text', interpretation: 'plain' },
+    { name: 'studyId', storage: 'text', interpretation: 'plain' },
     { name: 'step', storage: 'number', interpretation: 'plain' },
     { name: 'action', storage: 'text', interpretation: 'plain' },
     { name: 'screen', storage: 'text', interpretation: 'plain' },
