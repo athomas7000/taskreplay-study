@@ -6,7 +6,7 @@ import { Prototype } from '../../components/Prototype'
 import { Button, Modal } from '../../components/ui'
 import { SampleReplay } from '../../components/SampleReplay'
 import { defaultPrompt, findFriction, groupSessions, outcome, shortestCompletedPath, type Event } from '../../lib/replay'
-import { cafe, studio, defaultScript, isCafePrototype, parseScript, projectForScript, projectNames, readScript, type Project } from '../../lib/prototypes'
+import { cafe, studio, defaultScript, isCafePrototype, parseScript, projectForScript, projectNames, readScript, type Project, type Script } from '../../lib/prototypes'
 import { canManageStudy } from '../../lib/study-roles'
 import '../../replay.css'
 
@@ -87,6 +87,32 @@ const starterScript = JSON.stringify({
   },
 }, null, 2)
 
+function DraftPreview({ prototype, task, onClose }: { prototype: Script; task: string; onClose: () => void }) {
+  const [path, setPath] = useState(['home'])
+  const [actions, setActions] = useState<string[]>([])
+  const screen = path.at(-1) ?? 'home'
+  return <Modal open onClose={onClose}>
+    <Modal.Header>
+      <Modal.Title>Prototype preview</Modal.Title>
+      <Modal.Description>{task || 'Follow the buttons to check your prototype’s flow.'}</Modal.Description>
+    </Modal.Header>
+    <div className="replay">
+      <p>{path.map(id => prototype.screens[id].title).join(' → ')}</p>
+      <Prototype prototype={prototype} screen={screen} actions={actions}
+        onNavigate={(label, destination) => {
+          setActions(previous => [...previous, label])
+          setPath(previous => [...previous, destination])
+        }}
+        onBack={path.length > 1 ? () => setPath(previous => previous.slice(0, -1)) : undefined} />
+      {screen === 'done' && <p role="status">You reached the final screen.</p>}
+    </div>
+    <Modal.Footer>
+      <Button type="button" variant="secondary" disabled={path.length === 1} onClick={() => { setPath(['home']); setActions([]) }}>Restart from first screen</Button>
+      <Button type="button" onClick={onClose}>Back to study setup</Button>
+    </Modal.Footer>
+  </Modal>
+}
+
 function StudyTesters({ studyId }: { studyId: string }) {
   const { records, status } = useQuery<StudyTester>('study_testers')
   const { createConfirmed } = useMutations<StudyTester>('study_testers')
@@ -149,6 +175,8 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
   const [title, setTitle] = useState('')
   const [draft, setDraft] = useState('')
   const [scriptDraft, setScriptDraft] = useState('')
+  const [preview, setPreview] = useState<Script>()
+  const [previewError, setPreviewError] = useState('')
   const [testerList, setTesterList] = useState<string>()
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
@@ -171,6 +199,21 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
     const backtrack = events.findIndex(event => event.action === 'Back' && event.from === screen)
     const before = backtrack > 0 ? events[backtrack - 1] : undefined
     setSelected({ session: key, step: before?.step })
+  }
+
+  function openDraftPreview() {
+    setPreviewError('')
+    if (project !== 'custom') {
+      setPreview(template)
+      return
+    }
+    try {
+      setPreview(parseScript(scriptDraft))
+    } catch (error) {
+      setPreviewError(!scriptDraft.trim() ? 'Paste your prototype JSON or load the starter example first.'
+        : error instanceof SyntaxError ? 'Check the JSON syntax before previewing.'
+        : 'Include home and done screens and make sure every button points to an existing screen.')
+    }
   }
 
   async function save(event: FormEvent) {
@@ -209,6 +252,7 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
     </header>
     {guideStep !== null && <ProjectGuide project={project} step={guideStep} onStep={setGuideStep}
       onSkip={closeGuide} onSetup={() => { closeGuide(); setTitle(presets[project][0]?.[0] ?? ''); setDraft(presets[project][0]?.[1] ?? ''); setCreating(true) }} />}
+    {preview && <DraftPreview prototype={preview} task={draft.trim()} onClose={() => setPreview(undefined)} />}
     {creating && <form className="panel study-setup" onSubmit={save}>
       <h3>Create a study</h3>
       {presets[project].length > 0 && <div>
@@ -236,11 +280,16 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
           <p id="prototype-hint">Paste the JSON that defines your screens and where each button leads. The prototype starts at <code>home</code> and finishes at <code>done</code>.</p>
           {!scriptDraft.trim() && <button className="secondary" type="button" onClick={() => {
             setScriptDraft(starterScript)
+            setPreviewError('')
             if (!title.trim()) setTitle('Pickup booking test')
             if (!draft.trim()) setDraft('Book a pickup for 12:30 PM.')
           }}>Load a starter example</button>}
-          <textarea id="script" aria-describedby="prototype-hint" rows={6} maxLength={32000} value={scriptDraft} onChange={event => setScriptDraft(event.target.value)} required />
+          <textarea id="script" aria-describedby="prototype-hint" rows={6} maxLength={32000} value={scriptDraft} onChange={event => { setScriptDraft(event.target.value); setPreviewError('') }} required />
         </> : <p>{template.name}</p>}
+        <div className="mt-3">
+          <button className="secondary" type="button" onClick={openDraftPreview}>Preview prototype</button>
+          {previewError && <p role="alert">{previewError}</p>}
+        </div>
       </div>
       <footer className="form-row">
         <p>Publish to get a shareable link and start adding testers.</p>
