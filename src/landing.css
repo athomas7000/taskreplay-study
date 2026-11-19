@@ -24,12 +24,12 @@
   display: grid;
   grid-template-columns: minmax(17rem, .82fr) minmax(29rem, 1.18fr);
   align-items: center;
-  gap: clamp(1.5rem, 5vw, 5rem);
-  max-width: 95rem;
+  gap: clamp(1.25rem, 3.5vw, 3.75rem);
+  max-width: 101rem;
   margin: auto;
-  padding: clamp(2.25rem, 7vw, 7rem) clamp(1rem, 5vw, 5rem);
+  padding: clamp(1.25rem, 3.5vw, 3rem) clamp(1rem, 4vw, 4rem);
 }
-.taskreplay-landing h1 { margin: 0; font-size: clamp(3.1rem, 6.1vw, 6.65rem); text-wrap: balance; }
+.taskreplay-landing h1 { margin: 0; font-size: clamp(2.65rem, 5.4vw, 5.9rem); text-wrap: balance; }
 .taskreplay-landing h1 em { display: block; font-weight: inherit; color: #247156; }
 .taskreplay-landing .landing-category { margin: 0 0 1rem; font-size: .82rem; font-weight: 700; color: #247156; }
 .taskreplay-landing .landing-description { max-width: 27rem; margin: 1.15rem 0 1.6rem; }
@@ -127,3 +127,13 @@
 }
 .landing-device-stage .matcha-phone { width: min(100%, clamp(8.8rem, 21.7vw, 12.5rem)); }
 .landing-device-stage .studio-laptop { max-width: 37rem; }
+
+@media (max-width: 540px) {
+  .landing-grid { gap: 1.25rem; }
+  .landing-demo-grid { grid-template-columns: minmax(0, 1fr); }
+  .landing-events { border-right: 0; border-bottom: 1px solid #dae4d7; }
+  .landing-events ol { height: 5rem; overflow: auto; }
+  .landing-manager { min-height: 4.5rem; }
+  .landing-device-stage { height: clamp(17rem, 80vw, 24rem); }
+  .landing-device-stage .matcha-phone { width: min(100%, 10.5rem); }
+}

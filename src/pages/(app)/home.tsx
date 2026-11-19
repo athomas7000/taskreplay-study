@@ -60,7 +60,7 @@ function Dashboard({ userId, canConfigureAccess }: { userId: string; canConfigur
     <h1>{project === 'custom' ? 'Custom projects' : projectNames[project]}</h1>
     <div className="panel project-workspace"><ProjectTests key={`${userId}:${project}`} project={project} userId={userId} /></div>
   </section>
-  return <section className="replay page">
+  return <section className="replay page studies-overview">
     <header className="page-heading"><h1>Study dashboard</h1>{canConfigureAccess && <Link className="secondary" to="/settings">Reviewer access</Link>}</header>
     <nav className="project-folders project-cards" aria-label="Project folders">
       {projects.map(key => <div className={`project-card project-card-${key}`} key={key}>
@@ -72,7 +72,6 @@ function Dashboard({ userId, canConfigureAccess }: { userId: string; canConfigur
         </div>}
       </div>)}
     </nav>
-    <div className="study-dashboard-sample"><SampleReplay /></div>
   </section>
 }
 

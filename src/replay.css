@@ -103,7 +103,16 @@
 .replay .study-welcome-actions .primary { display: inline-flex; align-items: center; gap: .5rem; }
 .study-welcome-actions a { color: #145340; font-weight: 650; }
 .study-welcome-actions a:hover { text-decoration: underline; }
-.study-dashboard-sample { max-width: 55rem; margin-top: 1.5rem; }
+
+.studies-overview { width: min(100%, 90rem); margin-inline: auto; padding: clamp(1rem, 3vw, 2.5rem); }
+.studies-overview h1 { font-size: clamp(2rem, 4.5vw, 3.65rem); }
+.studies-overview .project-card { min-height: clamp(8.5rem, 15vw, 12rem); }
+.studies-overview .project-card-preview-apparel { max-width: 24rem; }
+.studies-overview .project-card-preview-cafe .matcha-phone { zoom: .23; }
+@media (max-width: 920px) {
+  .studies-overview .project-card-custom { min-height: 4rem; }
+}
+
 @media (max-width: 960px) {
   .study-welcome { grid-template-columns: 1fr; align-content: start; }
 }
