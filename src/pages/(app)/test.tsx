@@ -17,7 +17,7 @@ export default function TesterPage() {
   if (!isSignedIn || sampleOpen) return <>
     <SampleTester key={project} initial={project === 'apparel' ? 'apparel' : 'cafe'}
       onContinue={isSignedIn ? () => setSampleOpen(false) : () => setSignIn(true)}
-      continueLabel={isSignedIn ? 'Back to study test' : 'Sign up / Sign in'} />
+      continueLabel={isSignedIn ? 'Back to study test' : 'Join a study'} />
     {signIn && !isSignedIn && <AuthOverlay onClose={() => setSignIn(false)} />}
   </>
   return <RecordedTester key={params.toString()} onSample={() => setSampleOpen(true)} />
@@ -66,7 +66,6 @@ function SampleTester({ initial, onContinue, continueLabel }: {
         <button className="primary" type="button" onClick={onContinue}>{continueLabel} <ArrowRight size={16} aria-hidden="true" /></button>
         <button className="secondary" type="button" onClick={reset} disabled={path.length === 1 && !actions.length}><RotateCcw size={15} aria-hidden="true" /> Start over</button>
       </div>
-      {continueLabel === 'Sign up / Sign in' && <p className="role-auth-note">Continue with Google or GitHub. Use email and password for an existing demo account.</p>}
     </div>
     <div className="tester-sample-preview">
       <Prototype prototype={prototype} screen={screen} actions={actions}

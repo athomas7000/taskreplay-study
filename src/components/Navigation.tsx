@@ -8,10 +8,10 @@
  * email is the credential the session was opened with.
  */
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { AuthOverlay, useAuthProfileReady, signOut } from 'deepspace'
-import { ChevronDown, CirclePlay, LogOut, Menu, X } from 'lucide-react'
+import { ChevronDown, CirclePlay, LogOut } from 'lucide-react'
 import { APP_NAME } from '../constants'
 import type { Role } from '../constants'
 import { nav } from '../nav'
@@ -31,7 +31,6 @@ import {
 export default function Navigation() {
   const { isLoaded, isSignedIn, user, userLoading } = useAuthProfileReady({ requireUser: true })
   const location = useLocation()
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [authMode, setAuthMode] = useState<'login' | 'signup'>()
   const requestedAuth = searchParams.get('auth')
@@ -48,11 +47,6 @@ export default function Navigation() {
 
   const profileReady = !isSignedIn || (!userLoading && !!user)
   const userRole = (user?.role ?? 'anonymous') as Role | 'anonymous'
-
-  // Close the mobile menu when navigating
-  useEffect(() => {
-    setMobileMenuOpen(false)
-  }, [location.pathname])
 
   const visibleNav = nav.filter((item) => {
     if (item.devOnly && !import.meta.env.DEV) return false
@@ -87,7 +81,6 @@ export default function Navigation() {
             {APP_NAME}
           </Link>
 
-          <div className="hidden items-center md:flex">{visibleNav.map(navLink)}</div>
 
           <div className="flex-1" />
 
@@ -151,21 +144,8 @@ export default function Navigation() {
             </div>
           )}
 
-          <button
-            className="inline-flex h-8 w-8 items-center justify-center text-muted-foreground hover:text-foreground md:hidden"
-            onClick={() => setMobileMenuOpen((prev) => !prev)}
-            aria-label="Toggle menu"
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? <X className="h-4 w-4" aria-hidden /> : <Menu className="h-4 w-4" aria-hidden />}
-          </button>
         </div>
-
-        {mobileMenuOpen && (
-          <div className="flex flex-col border-t border-border px-2 py-2 md:hidden">
-            {visibleNav.map(navLink)}
-          </div>
-        )}
+        <div className="site-role-links">{visibleNav.map(navLink)}</div>
       </nav>
 
       {activeAuth && !isSignedIn && <AuthOverlay onClose={closeAuth}

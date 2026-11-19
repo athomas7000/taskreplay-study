@@ -10,12 +10,14 @@ export default function Landing() {
     <Seo {...seo} path="/" />
     <header className="landing-nav">
       <Link className="landing-brand" to="/"><CirclePlay size={24} aria-hidden="true" /> TaskReplay</Link>
-      <nav aria-label="Main navigation"><Link to="/home">Manager View</Link><Link to="/test">Tester View</Link></nav>
       <div className="site-auth-actions">
         <Link to="/home?auth=login">Log in</Link>
         <Link className="site-sign-up" to="/home?auth=signup">Sign up</Link>
       </div>
     </header>
+    <nav className="site-role-links" aria-label="Main navigation">
+      <Link to="/home">Run a Study</Link><Link to="/test">Take a Test</Link><Link to="/research">Why Test?</Link>
+    </nav>
     <main className="landing-grid">
       <section className="landing-intro">
         <p className="landing-category">Usability testing</p>

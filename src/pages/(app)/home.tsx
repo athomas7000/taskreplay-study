@@ -15,13 +15,13 @@ export default function StudyPage() {
   if (!isSignedIn) return <section className="replay study-welcome">
     <div className="study-welcome-copy">
       <p className="study-welcome-brand"><CirclePlay size={21} aria-hidden="true" /> Manager View</p>
-      <h1>See where customers <em>get stuck.</em></h1>
+      <h1>Get to know <em>your customers and users.</em></h1>
       <p>See where customers hesitate or backtrack before you ship a change. Give testers a task and watch what they do.</p>
       <div className="study-welcome-actions">
-        <button className="primary" type="button" onClick={() => setSignIn(true)}>Sign up / Sign in <ArrowRight size={16} aria-hidden="true" /></button>
+        <button className="primary" type="button" onClick={() => setSignIn(true)}>Open study dashboard <ArrowRight size={16} aria-hidden="true" /></button>
         <a href="#sample-replay">Try a sample replay</a>
+        <Link to="/research">Why usability testing matters</Link>
       </div>
-      <p className="role-auth-note">Continue with Google or GitHub. Use email and password for an existing demo account. Manager access is granted by the app owner.</p>
       <ol className="role-steps" aria-label="How Manager View works">
         <li><strong>Publish a task.</strong> Choose a project and write what the tester should try.</li>
         <li><strong>Share the link.</strong> Watch the tester’s steps arrive as they happen.</li>
@@ -197,7 +197,7 @@ function ProjectTests({ project }: { project: Project }) {
       {successfulPath.length > 0 && <p><strong>Shortest observed route without backtracking</strong><br />{successfulPath.map(event => event.action).join(" → ")}</p>}
       {finding ? <>
         <strong>{finding.sessions.length} of {total} finished sessions backtracked from {activePrototype.screens[finding.screen]?.title}.</strong>
-        <p>{isCafePrototype(activePrototype) && finding.screen === 'orders' ? 'Try adding a Reorder button to Past Orders and run another round.' : 'Review what testers saw here before deciding what to change.'}</p>
+        <p><strong>Recommended next step. </strong>{isCafePrototype(activePrototype) && finding.screen === 'orders' ? 'Try adding a Reorder button to Past Orders and run another round.' : 'Review what testers saw here before deciding what to change.'}</p>
         {finding.sessions.map(key => <button className="secondary" key={key} onClick={() => reviewEvidence(key, finding.screen)}>Review test run {sessions.length - sessions.findIndex(item => item.key === key)}</button>)}
       </> : <p>A finding appears when two finished sessions backtrack from the same screen.</p>}
     </section>
