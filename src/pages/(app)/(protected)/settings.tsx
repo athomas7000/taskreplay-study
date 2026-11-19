@@ -6,7 +6,7 @@
 import { useState, type FormEvent } from 'react'
 import { signOut, useMutations, useQuery, useUser, useUsers } from 'deepspace'
 import { Button } from '@/components/ui'
-import { STUDY_MANAGER_ROLE } from '../../../lib/study-roles'
+import { canManageStudy, STUDY_MANAGER_ROLE } from '../../../lib/study-roles'
 
 export default function SettingsPage() {
   const { user } = useUser()
@@ -22,7 +22,15 @@ export default function SettingsPage() {
         <section className="rounded-lg border border-border bg-card p-6">
           <h2 className="mb-4 text-lg font-semibold">Your account</h2>
 
-          {user && <ProfileForm key={user.id} id={user.id} name={user.name ?? ''} email={user.email ?? ''} />}
+          {user && <>
+            <div className="mb-4 border-b border-border pb-4 text-sm">
+              <span className="mr-2 text-muted-foreground">Account type</span>
+              <strong className="inline-block rounded-full border border-border bg-secondary px-2.5 py-0.5 text-primary">
+                {canManageStudy(user.role) ? 'Study Manager' : 'Tester'}
+              </strong>
+            </div>
+            <ProfileForm key={user.id} id={user.id} name={user.name ?? ''} email={user.email ?? ''} />
+          </>}
           <Button variant="secondary" className="mt-6" onClick={() => signOut()}>
             Sign out
           </Button>

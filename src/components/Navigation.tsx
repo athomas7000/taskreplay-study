@@ -15,6 +15,7 @@ import { ChevronDown, CirclePlay, LogOut, UserRound } from 'lucide-react'
 import { APP_NAME } from '../constants'
 import type { Role } from '../constants'
 import { nav } from '../nav'
+import { canManageStudy } from '../lib/study-roles'
 import { cn } from '../lib/utils'
 import {
   Avatar,
@@ -53,6 +54,7 @@ export default function Navigation() {
 
   const visibleNav = nav.filter((item) => {
     if (item.devOnly && !import.meta.env.DEV) return false
+    if (item.path === '/home' && isSignedIn) return profileReady && canManageStudy(user?.role)
     if (!item.roles) return true
     if (!profileReady) return false
     if (userRole === 'admin') return true
@@ -71,7 +73,7 @@ export default function Navigation() {
           active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
         )}
       >
-        {item.label}
+        {item.path === '/home' && isSignedIn ? 'Studies' : item.label}
       </Link>
     )
   }
