@@ -1,33 +1,93 @@
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
-import { useAuthProfileReady, useMutations, usePresenceRoom, useQuery } from 'deepspace'
+import { ArrowLeft, ArrowRight, CirclePlay, Plus } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { AuthOverlay, useAuthProfileReady, useMutations, usePresenceRoom, useQuery } from 'deepspace'
 import { Prototype } from '../../components/Prototype'
+import { SampleReplay } from '../../components/SampleReplay'
 import { defaultPrompt, findFriction, groupSessions, outcome, shortestCompletedPath, type Event } from '../../lib/replay'
-import { cafe, game, defaultScript, parseScript, readScript } from '../../lib/prototypes'
+import { cafe, studio, defaultScript, isCafePrototype, parseScript, projectForScript, projectNames, readScript, type Project } from '../../lib/prototypes'
+import { canManageStudy } from '../../lib/study-roles'
 import '../../replay.css'
 
 export default function StudyPage() {
+  const [signIn, setSignIn] = useState(false)
   const { isSignedIn, user } = useAuthProfileReady({ requireUser: true })
-  if (!isSignedIn) return <section className="replay page"><h1>Study dashboard</h1><p>Sign in using the navigation bar to manage the study.</p></section>
+  if (!isSignedIn) return <section className="replay study-welcome">
+    <div className="study-welcome-copy">
+      <p className="study-welcome-brand"><CirclePlay size={21} aria-hidden="true" /> TaskReplay Study</p>
+      <h1>Find the friction. <em>Replay the moment.</em></h1>
+      <p>Publish a usability task, watch testers work through it, and review the steps where they got stuck.</p>
+      <div className="study-welcome-actions">
+        <button className="primary" type="button" onClick={() => setSignIn(true)}>Sign in to Study <ArrowRight size={16} aria-hidden="true" /></button>
+        <a href="#sample-replay">Try a sample replay</a>
+      </div>
+    </div>
+    <SampleReplay />
+    {signIn && <AuthOverlay onClose={() => setSignIn(false)} />}
+  </section>
   if (!user) return <section className="replay page"><p>Loading your profile…</p></section>
-  if (user.role !== 'admin') return <section className="replay page"><h1>Study dashboard</h1><p>The app administrator manages this study.</p><Link className="primary" to="/test">Go to tester view</Link></section>
-  return <Dashboard />
+  if (!canManageStudy(user.role)) return <section className="replay page"><h1>Study dashboard</h1><p>The app administrator manages this study.</p><Link className="primary" to="/test">Go to tester view</Link></section>
+  return <Dashboard canConfigureAccess={user.role === 'admin'} />
 }
 
-function Dashboard() {
+const projects = ['cafe', 'apparel', 'custom'] as const
+const presets = {
+  cafe: [
+    ['Reorder a matcha', defaultPrompt],
+    ['Browse and order a matcha', 'Order a vanilla matcha for pickup at 1:00 PM.'],
+  ],
+  apparel: [
+    ['Add a tee and crewneck to the cart', 'Add an I ❤️ SDKs Tee and a Starburst Crewneck to your bag, then select Finish cart task.'],
+    ['Order the I ❤️ SDKs Tee', 'Order an I ❤️ SDKs Tee in a size Medium.'],
+    ['Order an Orbital Hoodie', 'Order an Orbital Hoodie in a size Large.'],
+    ['Order a Signal Cap', 'Find the Signal Cap and place an order.'],
+  ],
+  custom: [],
+} as const
+
+function Dashboard({ canConfigureAccess }: { canConfigureAccess: boolean }) {
+  const [params] = useSearchParams()
+  const project = projects.find(key => key === params.get('project'))
+  if (project) return <section className="replay page">
+    <Link className="project-back" to="/home"><ArrowLeft size={17} aria-hidden="true" /> All projects</Link>
+    <h1>{project === 'custom' ? 'Custom projects' : projectNames[project]}</h1>
+    <div className="panel project-workspace"><ProjectTests key={project} project={project} /></div>
+  </section>
+  return <section className="replay page">
+    <header className="page-heading"><h1>Study dashboard</h1>{canConfigureAccess && <Link className="secondary" to="/settings">Reviewer access</Link>}</header>
+    <nav className="project-folders project-cards" aria-label="Project folders">
+      {projects.map(key => <div className={`project-card project-card-${key}`} key={key}>
+        <Link className="project-card-toggle" to={`/home?project=${key}`}>
+          {key === 'custom' ? <><Plus size={23} aria-hidden="true" /> Add a project</> : projectNames[key]}
+        </Link>
+        {key !== 'custom' && <div className={`project-card-preview project-card-preview-${key}`} aria-hidden="true">
+          <Prototype prototype={key === 'cafe' ? cafe : studio} screen="home" readonly />
+        </div>}
+      </div>)}
+    </nav>
+    <div className="study-dashboard-sample"><SampleReplay /></div>
+  </section>
+}
+
+function ProjectTests({ project }: { project: Project }) {
   const { records, status } = useQuery<{ prompt: string; script?: string }>('study', { orderBy: 'createdAt', orderDir: 'desc' })
   const { records: events, status: eventsStatus } = useQuery<Event>('replay_events', { orderBy: 'createdAt', orderDir: 'desc' })
-  const { createConfirmed, putConfirmed } = useMutations<{ prompt: string; script?: string }>('study')
+  const { createConfirmed } = useMutations<{ prompt: string; script?: string }>('study')
+  const [copyStatus, setCopyStatus] = useState('')
+  const [creating, setCreating] = useState(project === 'custom')
   const [draft, setDraft] = useState<string>()
   const [scriptDraft, setScriptDraft] = useState<string>()
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [selected, setSelected] = useState<{ session: string; step?: number }>()
-  const prompt = records[0]?.data.prompt ?? defaultPrompt
-  const sessions = groupSessions(events)
-  const session = sessions.find(item => item.key === selected?.session) ?? sessions[0]
+  const projectTests = records.filter(record => projectForScript(record.data.script) === project)
+  const published = projectTests[0]
+  const prompt = published?.data.prompt ?? presets[project][0]?.[1] ?? ''
+  const sessions = groupSessions(events).filter(item => projectForScript(item.events[0]?.script) === project)
+  const session = sessions.find(item => item.key === selected?.session)
   const current = session?.events.find(event => event.step === selected?.step) ?? session?.events.at(-1)
-  const script = records[0]?.data.script ?? defaultScript
+  const template = project === 'apparel' ? studio : cafe
+  const script = published?.data.script ?? (project === 'apparel' ? JSON.stringify(studio) : defaultScript)
   const activePrototype = readScript(script)
   const replayPrototype = readScript(session?.events[0].script)
   const { finding, total } = findFriction(sessions, prompt, script)
@@ -46,12 +106,16 @@ function Dashboard() {
     if (!task) return
     setSaving(true)
     try {
-      const settings = { prompt: task, script: JSON.stringify(parseScript(scriptDraft ?? script)) }
-      if (records[0]) await putConfirmed(records[0].recordId, settings)
-      else await createConfirmed(settings)
+      const settings = { prompt: task, script: JSON.stringify(parseScript(scriptDraft ?? (project === "custom" ? published?.data.script ?? "" : JSON.stringify(template)))) }
+      if (projectForScript(settings.script) !== project) {
+        setMessage('Choose a prototype for this folder. Custom tests need a custom script.')
+        return
+      }
+      await createConfirmed(settings)
       setDraft(undefined)
       setScriptDraft(undefined)
-      setMessage('Task saved.')
+      setMessage('Usability test published. Share the tester link to collect a run.')
+      setCreating(false)
     } catch (error) {
       setMessage(error instanceof SyntaxError ? 'Enter a valid JSON script.' : 'Could not save. Check the screen IDs and destinations, then try again.')
     } finally {
@@ -59,43 +123,66 @@ function Dashboard() {
     }
   }
 
-  return <section className="replay page">
-    <div className="eyebrow">MANAGER VIEW</div>
-    <header className="page-heading"><h1>Study dashboard</h1><Link className="primary" to="/test">Open tester link →</Link></header>
-    <form className="panel task" onSubmit={save}>
+  return <section className="project-tests">
+    <header className="page-heading">
+      <h2>Usability tests</h2>
+      <button className="primary" type="button" onClick={() => { setCreating(!creating); setMessage('') }}>{creating ? 'Close setup' : '+ New usability test'}</button>
+    </header>
+    {projectTests.length > 0 && <details className="study-folder" open>
+      <summary>Published tests</summary>
+      <ul className="published-test-list">{projectTests.map(record => {
+        const path = `/test?project=${project}&test=${encodeURIComponent(record.recordId)}`
+        return <li key={record.recordId}>
+          <span>{record.data.prompt}</span>
+          <div className="published-test-actions">
+            <Link to={path}>Open tester link →</Link>
+            <button className="secondary" type="button" onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(new URL(path, window.location.origin).href)
+                setCopyStatus('Tester link copied.')
+              } catch {
+                setCopyStatus('Could not copy. Open the tester link and copy it from the address bar.')
+              }
+            }}>Copy tester link</button>
+          </div>
+        </li>
+      })}</ul>
+      {copyStatus && <p role="status">{copyStatus}</p>}
+    </details>}
+    {creating && <form className="panel task" onSubmit={save}>
+      {presets[project].length > 0 && <><label htmlFor="task-preset">Task presets</label>
+        <select id="task-preset" value="" onChange={event => { if (event.target.value) setDraft(event.target.value) }}>
+          <option value="" disabled>Choose a task</option>
+          {presets[project].map(([label, task]) => <option value={task} key={label}>{label}</option>)}
+        </select></>}
       <label htmlFor="prompt">Task prompt</label>
       <div className="form-row"><input id="prompt" maxLength={240} required value={draft ?? prompt} onChange={e => setDraft(e.target.value)} />
-        <button className="secondary" disabled={saving || !(draft ?? prompt).trim() || (draft === undefined && scriptDraft === undefined) || status === 'loading' || status === 'error'}>Save task</button></div>
-      <details>
-        <summary>Prototype options and custom script</summary>
-        <p>Choose a template or paste a JSON script. Every prototype starts at <code>home</code> and ends at <code>done</code>. Buttons list a label and a destination.</p>
-        <button type="button" className="secondary" onClick={() => { setScriptDraft(JSON.stringify(cafe, null, 2)); setDraft(defaultPrompt) }}>Matcha café</button>
-        <button type="button" className="secondary" onClick={() => { setScriptDraft(JSON.stringify(game, null, 2)); setDraft('Find the power cell and restore the beacon.') }}>Moonbase game</button>
-        <label htmlFor="script">Prototype JSON</label>
-        <textarea id="script" rows={12} maxLength={32000} value={scriptDraft ?? JSON.stringify(activePrototype, null, 2)} onChange={e => setScriptDraft(e.target.value)} />
-      </details>
-      {message && <p role="status">{message}</p>}
-    </form>
-    <div className="dashboard">
+        <button className="secondary" disabled={saving || !(draft ?? prompt).trim() || status !== 'ready'}>Publish test</button></div>
+      {project === 'custom' && <><label htmlFor="script">Prototype JSON</label>
+        <textarea id="script" rows={12} maxLength={32000} value={scriptDraft ?? (published ? JSON.stringify(activePrototype, null, 2) : '')} onChange={e => setScriptDraft(e.target.value)} required /></>}
+    </form>}
+    {message && <p role="status">{message}</p>}
+    <div className="dashboard project-workspace-grid">
       <section className="panel">
-        <h2>Sessions</h2>
-        {eventsStatus === 'loading' && <p>Loading sessions…</p>}
-        {eventsStatus === 'error' && <p role="alert">Could not load the session timeline.</p>}
-        {sessions.length === 0 && <p>Share the tester link to start collecting sessions.</p>}
+        <h2>Test runs</h2>
+        {eventsStatus === 'loading' && <p>Loading test runs…</p>}
+        {eventsStatus === 'error' && <p role="alert">Could not load test runs.</p>}
+        {eventsStatus === 'ready' && sessions.length === 0 && <p>No test runs yet.</p>}
         <ul className="timeline">{sessions.map((item, index) =>
-          <li key={item.key}><button aria-pressed={session?.key === item.key} onClick={() => setSelected({ session: item.key })}>Session {sessions.length - index}<small>{outcome(item.events)}</small></button></li>)}</ul>
+          <li key={item.key}><button aria-pressed={session?.key === item.key} onClick={() => setSelected({ session: item.key })}>Test run {sessions.length - index}<small>{outcome(item.events)}</small></button></li>)}</ul>
       </section>
-      <section className="panel">
+      {session && <section className="panel">
         <h2>Activity timeline</h2>
         {session && <SessionPresence key={session.key} id={session.events[0].sessionId} />}
         {session && <p>{session.events[0].prompt}</p>}
         {session && <button className="secondary" disabled={selected?.step === undefined} onClick={() => setSelected({ session: session.key })}>Follow latest</button>}
         <ol className="timeline">{session?.events.map(event =>
           <li key={event.step}><button aria-pressed={current?.step === event.step} onClick={() => setSelected({ session: session.key, step: event.step })}>{event.action}<small>{replayPrototype.screens[event.screen]?.title}</small></button></li>)}</ol>
-      </section>
-      <section className="panel">
+      </section>}
+      <section className="panel project-preview">
         <h2>Screen preview</h2>
-        {current ? <Prototype screen={current.screen} prototype={replayPrototype} /> : <p>Select a session to see what the tester saw.</p>}
+        {current ? <Prototype screen={current.screen} prototype={replayPrototype} readonly
+          actions={session?.events.filter(event => event.step <= current.step).map(event => event.action)} /> : <p>Select a test run to see what the tester saw.</p>}
       </section>
     </div>
     <section className="panel results">
@@ -104,8 +191,8 @@ function Dashboard() {
       {successfulPath.length > 0 && <p><strong>Shortest observed route without backtracking</strong><br />{successfulPath.map(event => event.action).join(" → ")}</p>}
       {finding ? <>
         <strong>{finding.sessions.length} of {total} finished sessions backtracked from {activePrototype.screens[finding.screen]?.title}.</strong>
-        <p>{activePrototype.name === cafe.name && finding.screen === 'orders' ? 'Try adding a Reorder button to Past Orders and run another round.' : 'Review what testers saw here before deciding what to change.'}</p>
-        {finding.sessions.map(key => <button className="secondary" key={key} onClick={() => reviewEvidence(key, finding.screen)}>Review session {sessions.length - sessions.findIndex(item => item.key === key)}</button>)}
+        <p>{isCafePrototype(activePrototype) && finding.screen === 'orders' ? 'Try adding a Reorder button to Past Orders and run another round.' : 'Review what testers saw here before deciding what to change.'}</p>
+        {finding.sessions.map(key => <button className="secondary" key={key} onClick={() => reviewEvidence(key, finding.screen)}>Review test run {sessions.length - sessions.findIndex(item => item.key === key)}</button>)}
       </> : <p>A finding appears when two finished sessions backtrack from the same screen.</p>}
     </section>
   </section>

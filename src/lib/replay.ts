@@ -27,8 +27,8 @@ export function groupSessions(records: readonly { createdBy?: string; data: Even
 }
 
 export function outcome(events: Event[]) {
-  if (events.some(event => event.screen === 'done')) return 'Completed'
-  if (events.some(event => event.action === 'Ended session')) return 'Ended'
+  if (events.at(-1)?.screen === 'done') return 'Completed'
+  if (events.at(-1)?.action === 'Ended session') return 'Ended'
   return 'In progress'
 }
 
@@ -49,6 +49,6 @@ export function findFriction(sessions: Session[], prompt: string, script?: strin
 export function shortestCompletedPath(sessions: Session[], prompt: string, script: string) {
   const completed = sessions.filter(({ events }) => events[0]?.prompt === prompt
     && events[0]?.script === script && outcome(events) === 'Completed')
-  const clean = completed.filter(({ events }) => !events.some(event => event.action === 'Back'))
+  const clean = completed.filter(({ events }) => !events.some(event => event.action === 'Back' || event.action === 'Edit order'))
   return clean.sort((a, b) => a.events.length - b.events.length)[0]?.events.slice(1) ?? []
 }

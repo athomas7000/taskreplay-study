@@ -1,4 +1,5 @@
 import type { CollectionSchema } from 'deepspace/schema'
+import { STUDY_MANAGER_ROLE } from '../lib/study-roles'
 
 const participant = { read: 'own', create: true, update: false, delete: false } as const
 const readOnly = { read: true, create: false, update: false, delete: false } as const
@@ -17,6 +18,7 @@ export const replayEventsSchema: CollectionSchema = {
   permissions: {
     member: participant,
     viewer: participant,
+    [STUDY_MANAGER_ROLE]: { ...readOnly, create: true },
     admin: { ...readOnly, create: true },
   },
 }
@@ -30,6 +32,7 @@ export const studySchema: CollectionSchema = {
   permissions: {
     member: readOnly,
     viewer: readOnly,
+    [STUDY_MANAGER_ROLE]: { ...readOnly, create: true },
     admin: { ...readOnly, create: true, update: true },
   },
 }

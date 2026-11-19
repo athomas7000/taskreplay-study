@@ -1,12 +1,22 @@
-import type { Script } from '../lib/prototypes'
+import { isCafePrototype, isStudioPrototype, type Script } from '../lib/prototypes'
+import { StudioApp } from './StudioApp'
+import { MatchaApp } from './MatchaApp'
 
-export function Prototype({ prototype, screen, onNavigate, onBack, busy }: {
+export type PrototypeProps = {
   prototype: Script
   screen: string
   onNavigate?: (label: string, destination: string) => void
   onBack?: () => void
   busy?: boolean
-}) {
+  actions?: readonly string[]
+  readonly?: boolean
+  replayTarget?: string
+}
+
+export function Prototype(props: PrototypeProps) {
+  const { prototype, screen, onNavigate, onBack, busy } = props
+  if (isCafePrototype(prototype) && Object.hasOwn(prototype.screens, screen)) return <MatchaApp {...props} />
+  if (isStudioPrototype(prototype) && Object.hasOwn(prototype.screens, screen)) return <StudioApp {...props} />
   const view = prototype.screens[screen] ?? prototype.screens.home
   return <div className="prototype">
     <div className="prototype-brand">{prototype.name}</div>

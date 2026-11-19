@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { findFriction, groupSessions, shortestCompletedPath, type Event } from '../src/lib/replay.ts'
-import { cafe, game, parseScript } from '../src/lib/prototypes.ts'
+import { cafe, studio, parseScript } from '../src/lib/prototypes.ts'
 
 const prompt = 'Reorder your matcha'
 const script = JSON.stringify(cafe)
@@ -21,7 +21,7 @@ test('counts repeated backtracking once per finished session, keeping owners sep
     total: 2,
     finding: { screen: 'orders', sessions: ['a:run', 'b:run'] },
   })
-  assert.equal(findFriction(sessions, prompt, JSON.stringify(game)).total, 0)
+  assert.equal(findFriction(sessions, prompt, JSON.stringify(studio)).total, 0)
 })
 
 test('reports a clean observed completion path', () => {
@@ -31,6 +31,6 @@ test('reports a clean observed completion path', () => {
 
 test('both built-in scripts load and broken destinations are rejected', () => {
   assert.equal(parseScript(script).name, cafe.name)
-  assert.equal(parseScript(JSON.stringify(game)).name, game.name)
+  assert.equal(parseScript(JSON.stringify(studio)).name, studio.name)
   assert.throws(() => parseScript(script.replace('["Past Orders","orders"]', '["Past Orders","missing"]')))
 })

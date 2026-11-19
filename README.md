@@ -19,7 +19,7 @@ npm run dev
 ```
 
 The app owner uses /home to manage the study and shares /test. The built-in
-templates are Juniper Matcha and Moonbase Rescue. Managers can also paste a
+templates are Deep Space Café and DeepSpace Apparel. Managers can also paste a
 JSON prototype using the built-in templates as examples. A script is data:
 a name, a map of screens with titles and optional body text, and lists of
 [label, destination] pairs. Each script starts at home and ends at done.
@@ -29,10 +29,37 @@ For DeepSpace-hosted source, commit the initialized project before
 `npx deepspace deploy`. The CLI needs a signed-in DeepSpace account.
 For the submission, ensure reviewers can open the repository URL you provide.
 
+## Reviewer accounts
+
+Use two dedicated demo accounts. Keep your developer account and its credentials
+separate. After signing in to the DeepSpace CLI as the app owner, create two
+synthetic logins:
+
+```sh
+npx deepspace test accounts create --email taskreplay-review-manager@deepspace.test --name taskreplay-review-manager
+npx deepspace test accounts create --email taskreplay-review-tester@deepspace.test --name taskreplay-review-tester
+```
+
+1. Deploy with `npx deepspace deploy`. Open the deployed URL and use its
+   email/password form to sign in once with each demo account in separate
+   browser profiles.
+2. On the deployed app, sign in as the app administrator in a third profile.
+   Go to Study → Reviewer access. Select **Make study manager** for the
+   manager account. Leave the tester account as a Tester.
+3. Open `/home` with the manager account. Publish a test and use
+   **Copy tester link**. Run the test in the tester's browser profile.
+4. Give reviewers the deployed URL and the two demo credentials in the
+   private submission. Keep credentials out of GitHub.
+
+The Study Manager role can publish studies and review recorded runs.
+It cannot change user roles. Account creation and login are handled by the
+DeepSpace CLI and sign-in overlay. Normal users can sign in with Google or
+GitHub. The demo identities use synthetic addresses and do not need inboxes.
+
 ## What to verify
 
 - Run `npm run type-check` and `node --test tests/replay.node-test.mts`.
-- Use the app owner in one browser profile and a tester account in a second.
+- Use the demo manager in one browser profile and the demo tester in a second.
   Save the matcha study and open /test as the tester.
 - Start the test, open Past Orders, then go back. The manager should see the
   activity and the tester's online status. Finish via Favorites. Refresh the
@@ -40,7 +67,7 @@ For the submission, ensure reviewers can open the repository URL you provide.
 - Run a second finished session with the same detour. The manager should see
   evidence links for both sessions. Repeating a detour several times in one
   session should count once.
-- Publish Moonbase Rescue. Replay an earlier matcha session to confirm it
+- Publish a DeepSpace Apparel task. Replay an earlier matcha session to confirm it
   still uses the original matcha prototype. Try importing a script with an
   invalid destination and confirm the active script is preserved.
 - Sign in as the tester and visit /home. Confirm that manager access is denied.

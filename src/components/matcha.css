@@ -1,0 +1,96 @@
+.matcha-app { container-type: inline-size; max-width: 32rem; overflow: hidden; border: 1px solid #d6ddd1; border-radius: 1.35rem; background: #fbfaf5; color: #203325; box-shadow: 0 8px 24px #26402912; }
+.matcha-header, .matcha-footer { display: flex; align-items: center; gap: .55rem; padding: .95rem clamp(.8rem, 5cqi, 1.5rem); }
+.matcha-header { justify-content: space-between; background: #214331; color: #fffaf0; }
+.matcha-brand { display: flex; align-items: center; gap: .42rem; font: 700 1.4rem Georgia, serif; }
+.matcha-brand span { font: 700 .58rem system-ui, sans-serif; letter-spacing: .12em; padding-top: .2rem; }
+.matcha-main { padding: clamp(.85rem, 5cqi, 1.5rem); }
+.replay .matcha-main h2 { font: 700 clamp(1.45rem, 7cqi, 2.25rem)/1.05 Georgia, serif; letter-spacing: -.035em; margin: 0 0 .8rem; }
+.replay .matcha-main p { color: #526454; font-size: .91rem; margin: .4rem 0 1rem; }
+.matcha-hero { border-radius: .95rem; padding: clamp(.9rem, 5cqi, 1.5rem); min-height: 11rem; background: linear-gradient(125deg, #dbe9bd, #b8cb9b); }
+.matcha-hero h2, .matcha-hero p { max-width: 13rem; }
+.matcha-back, .matcha-detail, .matcha-item > span, .matcha-shortcut { display: flex; gap: .5rem; align-items: center; }
+.matcha-back { margin-bottom: 1rem; color: #315840; font-size: .85rem; }
+.matcha-cta, .matcha-item, .matcha-shortcut { border-radius: .7rem; padding: .75rem; text-align: left; }
+.matcha-cta, .matcha-item { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: .6rem; }
+.matcha-cta { background: #28533b; color: #fffaf0; font-weight: 700; margin-top: .8rem; }
+.matcha-item { background: #fff; border: 1px solid #dde3d8; margin: .55rem 0; }
+.matcha-item span:has(small) { display: grid; gap: .22rem; }
+.matcha-item b { white-space: nowrap; }
+.matcha-item small { color: #536556; }
+.matcha-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; margin-top: .55rem; }
+.matcha-shortcut { background: #eef2e7; font-size: .84rem; font-weight: 650; }
+.matcha-confirmation { text-align: center; padding: .35rem 0; }
+.matcha-check { display: grid; place-items: center; margin: 0 auto .85rem; border-radius: 50%; background: #d9ecd3; color: #28533b; width: 3.4rem; height: 3.4rem; }
+.matcha-ticket { border: 1px solid #dde3d8; padding: .2rem .8rem; border-radius: .75rem; background: #fff; }
+.matcha-ticket div { display: flex; justify-content: space-between; gap: .5rem; padding: .65rem 0; font-size: .86rem; }
+.matcha-ticket div + div { border-top: 1px solid #e5eadf; }
+.matcha-ticket strong { text-align: right; }
+.matcha-footer { border-top: 1px solid #dde3d8; background: #f0f2e8; color: #526454; font-size: .77rem; }
+.matcha-app button:hover:not(:disabled) { filter: brightness(.94); }
+.matcha-app button:focus-visible { outline: 2px solid #28533b; outline-offset: 3px; }
+@container (max-width: 235px) { .matcha-shortcuts { grid-template-columns: 1fr; } }
+.matcha-hero {
+  background: linear-gradient(90deg, #f3f2dbf5, #f3f2dbdb 36%, #f3f2db00 77%), url('/deep-space-matcha.webp') 64% 52% / cover;
+  min-height: 12rem;
+}
+.matcha-hero p { max-width: 9rem; }
+
+/* 390 × 844 logical screen, with room for the bezel. */
+.matcha-phone {
+  position: relative;
+  display: grid;
+  width: min(100%, 25.5rem);
+  aspect-ratio: 408 / 862;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  margin-inline: auto;
+  padding: .55rem;
+  border: 2px solid #68616d;
+  border-radius: 2.65rem;
+  background: #101012;
+  box-shadow: 0 0 0 1px #b7aab5, 0 14px 22px #1b131e26;
+}
+.matcha-phone .matcha-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  padding-top: 1.8rem;
+  border-radius: 2.05rem;
+}
+.matcha-phone .matcha-main {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.matcha-header, .matcha-footer { flex: 0 0 auto; }
+.matcha-brand { font-size: clamp(.83rem, 5.6cqi, 1.4rem); }
+.matcha-brand span { white-space: nowrap; }
+.matcha-phone-camera, .matcha-phone-gesture {
+  position: absolute;
+  z-index: 1;
+  margin: 0 auto;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.matcha-phone-camera { inset: .9rem 0 auto; width: 24%; height: .75rem; background: #101012; }
+.matcha-phone-gesture { inset: auto 0 .76rem; width: 29%; height: .19rem; background: #1a191a; }
+.matcha-phone .matcha-footer { padding-bottom: 1.25rem; }
+@container (max-width: 300px) {
+  .matcha-header, .matcha-footer { gap: .3rem; padding: .58rem 5cqi; }
+  .matcha-phone .matcha-footer { padding-bottom: .88rem; }
+  .matcha-brand span { display: none; }
+  .matcha-main { padding: 5cqi; font-size: .76rem; }
+  .replay .matcha-main h2 { font-size: clamp(1.1rem, 8cqi, 1.45rem); margin-bottom: .45rem; }
+  .replay .matcha-main p { font-size: .75rem; margin-block: .3rem .6rem; }
+  .matcha-back { margin-bottom: .5rem; font-size: .72rem; }
+  .matcha-hero { min-height: clamp(5.5rem, 52cqi, 10rem); padding: .62rem; }
+  .matcha-cta, .matcha-item, .matcha-shortcut { padding: .42rem; border-radius: .45rem; }
+  .matcha-cta { margin-top: .5rem; }
+  .matcha-shortcut, .matcha-ticket div, .matcha-footer { font-size: .7rem; }
+  .matcha-item { margin-block: .35rem; }
+  .matcha-ticket { padding: .1rem .42rem; }
+  .matcha-ticket div { padding: .35rem 0; }
+  .matcha-check { width: 2.35rem; height: 2.35rem; margin-bottom: .46rem; }
+}
+.order-edit { margin-top: 1rem; }
