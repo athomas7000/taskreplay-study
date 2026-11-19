@@ -10,11 +10,12 @@
 import type { CollectionSchema } from 'deepspace/schema'
 import { usersSchema } from './schemas/users-schema'
 import { settingsSchema } from './schemas/admin-schema'
-import { replayEventsSchema, studySchema } from './schemas/task-replay'
+import { replayEventsSchema, studySchema, studyTestersSchema } from './schemas/task-replay'
 
 export const schemas: CollectionSchema[] = [
   usersSchema,
   settingsSchema,
   replayEventsSchema,
   studySchema,
+  studyTestersSchema,
 ]

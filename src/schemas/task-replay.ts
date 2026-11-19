@@ -26,6 +26,7 @@ export const replayEventsSchema: CollectionSchema = {
 export const studySchema: CollectionSchema = {
   name: 'study',
   columns: [
+    { name: 'title', storage: 'text', interpretation: 'plain' },
     { name: 'prompt', storage: 'text', interpretation: 'plain' },
     { name: 'script', storage: 'text', interpretation: 'plain' },
   ],
@@ -34,5 +35,19 @@ export const studySchema: CollectionSchema = {
     viewer: readOnly,
     [STUDY_MANAGER_ROLE]: { ...readOnly, create: true },
     admin: { ...readOnly, create: true, update: true },
+  },
+}
+
+export const studyTestersSchema: CollectionSchema = {
+  name: 'study_testers',
+  columns: [
+    { name: 'studyId', storage: 'text', interpretation: 'plain' },
+    { name: 'email', storage: 'text', interpretation: 'plain' },
+  ],
+  permissions: {
+    member: { ...readOnly, read: false },
+    viewer: { ...readOnly, read: false },
+    [STUDY_MANAGER_ROLE]: { ...participant },
+    admin: { ...participant },
   },
 }

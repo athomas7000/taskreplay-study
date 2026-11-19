@@ -1,18 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Coffee, RotateCcw, ShoppingBag } from 'lucide-react'
 import { AuthOverlay, useAuthProfileReady, useMutations, usePresenceRoom, useQuery } from 'deepspace'
 import { Prototype } from '../../components/Prototype'
 import { defaultPrompt, type Event } from '../../lib/replay'
 import { cafe, defaultScript, isCafePrototype, isStudioPrototype, projectForScript, readScript, studio } from '../../lib/prototypes'
+import { canManageStudy } from '../../lib/study-roles'
 import '../../replay.css'
 
 export default function TesterPage() {
   const [params] = useSearchParams()
-  const { isSignedIn } = useAuthProfileReady({ requireUser: true })
+  const { isSignedIn, user } = useAuthProfileReady({ requireUser: true })
   const [sampleOpen, setSampleOpen] = useState(false)
   const [signIn, setSignIn] = useState(false)
   const project = params.get('project')
+
+  if (params.get('preview') === '1') {
+    if (user && canManageStudy(user.role)) return <RecordedTester key={params.toString()} preview onSample={() => setSampleOpen(true)} />
+    return <section className="replay page">
+      <h1>Study preview</h1>
+      <p>{isSignedIn && !user ? 'Loading your profile…' : 'Sign in as a study manager to preview a study.'}</p>
+      <Link to="/home">Go to study dashboard</Link>
+    </section>
+  }
 
   if (!isSignedIn || sampleOpen) return <>
     <SampleTester key={project} initial={project === 'apparel' ? 'apparel' : 'cafe'}
@@ -78,7 +88,7 @@ function SampleTester({ initial, onContinue, continueLabel }: {
   </section>
 }
 
-function RecordedTester({ onSample }: { onSample: () => void }) {
+function RecordedTester({ onSample, preview = false }: { onSample: () => void; preview?: boolean }) {
   const [params] = useSearchParams()
   const folder = params.get('project')
   const testId = params.get('test')
@@ -117,7 +127,7 @@ function RecordedTester({ onSample }: { onSample: () => void }) {
     const id = run?.id ?? crypto.randomUUID()
     const step = (run?.step ?? -1) + 1
     try {
-      await createConfirmed({ sessionId: id, step, action, from: screen, screen: destination, prompt, script: step === 0 ? script : undefined })
+      if (!preview) await createConfirmed({ sessionId: id, step, action, from: screen, screen: destination, prompt, script: step === 0 ? script : undefined })
       setScreen(destination)
       setRun({ id, prompt, step, path, script, actions: [...(run?.actions ?? []), action] })
       setFinished(destination === 'done' || action === 'Ended session')
@@ -132,23 +142,30 @@ function RecordedTester({ onSample }: { onSample: () => void }) {
   }
 
   return <section className="replay page tester">
-    <div className="eyebrow">TESTER VIEW</div>
+    {preview && <Link className="project-back" to={folder ? `/home?project=${encodeURIComponent(folder)}` : '/home'}>← Back to studies</Link>}
+    <div className="eyebrow">{preview ? 'MANAGER PREVIEW' : 'TESTER VIEW'}</div>
     <h1>{cafeOrder ? 'Deep Space Café' : apparelOrder ? 'DeepSpace Apparel' : prototype.name}</h1>
     <div className="panel task"><strong>Your task</strong><p>{prompt}</p></div>
-    <p>This study records the actions you take inside the prototype.</p>
+    <p>{preview ? 'Try the task as a tester. Preview actions stay in this tab.' : 'This study records the actions you take inside the prototype.'}</p>
     {error && <p role="alert">{error}</p>}
     {status === 'error' && <p role="alert">The study could not load. Refresh and try again.</p>}
     {unavailable && <p role="alert">This usability test is unavailable.</p>}
-    {!run && !unavailable && <button className="primary" disabled={busy || status !== 'ready'} onClick={() => void record('Started session', 'home', ['home'])}>Start test</button>}
-    {run && !finished && <TesterPresence id={run.id} />}
+    {!run && !unavailable && <button className="primary" disabled={busy || status !== 'ready'} onClick={() => void record('Started session', 'home', ['home'])}>{preview ? 'Start preview' : 'Start test'}</button>}
+    {!preview && run && !finished && <TesterPresence id={run.id} />}
     {run && <Prototype screen={screen} prototype={prototype} busy={busy} actions={run.actions}
       onNavigate={finished ? undefined : (label, destination) => void record(label, destination, [...run.path, destination])}
       onBack={!finished && run.path.length > 1 ? () => void record('Back', run.path[run.path.length - 2], run.path.slice(0, -1)) : undefined} />}
     {run && !finished && <button className="secondary" disabled={busy} onClick={() => void record('Ended session', screen, run.path)}>End test</button>}
     {finished && (editUntil
-      ? <OrderEditWindow key={editUntil} deadline={editUntil} onEdit={editOrder} busy={busy} />
-      : <p role="status">Test saved. You can close this tab.</p>)}
-    {!run && <button className="secondary" type="button" onClick={onSample}>Try a sample</button>}
+      ? <OrderEditWindow key={editUntil} deadline={editUntil} onEdit={editOrder} busy={busy} preview={preview} />
+      : <p role="status">{preview ? 'Preview ended.' : 'Test saved. You can close this tab.'}</p>)}
+    {!preview && !run && <button className="secondary" type="button" onClick={onSample}>Try a sample</button>}
+    {preview && run && <button className="secondary" type="button" onClick={() => {
+      setRun(undefined)
+      setScreen('home')
+      setFinished(false)
+      setEditUntil(0)
+    }}>Restart preview</button>}
   </section>
 }
 
@@ -160,7 +177,7 @@ function TesterPresence({ id }: { id: string }) {
   return null
 }
 
-function OrderEditWindow({ deadline, onEdit, busy }: { deadline: number; onEdit: () => void; busy: boolean }) {
+function OrderEditWindow({ deadline, onEdit, busy, preview }: { deadline: number; onEdit: () => void; busy: boolean; preview: boolean }) {
   const secondsLeft = () => Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
   const [seconds, setSeconds] = useState(secondsLeft)
 
@@ -175,5 +192,5 @@ function OrderEditWindow({ deadline, onEdit, busy }: { deadline: number; onEdit:
 
   return seconds > 0
     ? <button className="secondary order-edit" type="button" disabled={busy} onClick={onEdit}>Edit order · {seconds}s left</button>
-    : <p role="status">Edit window closed. Test saved.</p>
+    : <p role="status">{preview ? 'Preview complete.' : 'Edit window closed. Test saved.'}</p>
 }

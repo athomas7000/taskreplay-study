@@ -75,10 +75,66 @@ function Dashboard({ userId, canConfigureAccess }: { userId: string; canConfigur
   </section>
 }
 
+type Study = { title?: string; prompt: string; script?: string }
+type StudyTester = { studyId: string; email: string }
+
+const starterScript = JSON.stringify({
+  name: 'Pickup booking',
+  screens: {
+    home: { title: 'Book a pickup', buttons: [['Choose a time', 'pickup']] },
+    pickup: { title: 'Choose a pickup time', buttons: [['Confirm 12:30 PM', 'done'], ['Back', 'home']] },
+    done: { title: 'Pickup confirmed', buttons: [] },
+  },
+}, null, 2)
+
+function StudyTesters({ studyId }: { studyId: string }) {
+  const { records, status } = useQuery<StudyTester>('study_testers')
+  const { createConfirmed } = useMutations<StudyTester>('study_testers')
+  const [email, setEmail] = useState('')
+  const [message, setMessage] = useState('')
+  const [saving, setSaving] = useState(false)
+  const testers = records.filter(record => record.data.studyId === studyId)
+
+  async function addTester(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const address = email.trim().toLowerCase()
+    if (!address || saving || status !== 'ready') return
+    if (testers.some(record => record.data.email === address)) {
+      setMessage('That email is already on your list.')
+      return
+    }
+    setSaving(true)
+    try {
+      await createConfirmed({ studyId, email: address })
+      setEmail('')
+      setMessage('Tester added.')
+    } catch {
+      setMessage('Could not add this tester. Try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return <section className="study-testers" aria-label="Tester list">
+    <strong>Tester list</strong>
+    <p>Keep track of who you plan to invite. Send them the tester link when you’re ready.</p>
+    {status === 'loading' && <p>Loading testers…</p>}
+    {status === 'error' && <p role="alert">Could not load testers.</p>}
+    {status === 'ready' && (testers.length
+      ? <ul>{testers.map(record => <li key={record.recordId}>{record.data.email}</li>)}</ul>
+      : <p>No testers added yet.</p>)}
+    <form className="form-row" onSubmit={addTester}>
+      <input aria-label="Tester email" type="email" autoComplete="off" placeholder="tester@example.com" maxLength={254} required value={email} onChange={event => setEmail(event.target.value)} />
+      <button className="secondary" disabled={status !== 'ready' || saving || !email.trim()}>{saving ? 'Adding…' : 'Add tester'}</button>
+    </form>
+    {message && <p role="status">{message}</p>}
+  </section>
+}
+
 function ProjectTests({ project, userId }: { project: Project; userId: string }) {
-  const { records, status } = useQuery<{ prompt: string; script?: string }>('study', { orderBy: 'createdAt', orderDir: 'desc' })
+  const { records, status } = useQuery<Study>('study', { orderBy: 'createdAt', orderDir: 'desc' })
   const { records: events, status: eventsStatus } = useQuery<Event>('replay_events', { orderBy: 'createdAt', orderDir: 'desc' })
-  const { createConfirmed } = useMutations<{ prompt: string; script?: string }>('study')
+  const { createConfirmed } = useMutations<Study>('study')
   const guideKey = `taskreplay:project-guide:${userId}:${project}`
   const [guideStep, setGuideStep] = useState<number | null>(() => {
     if (project === 'custom') return null
@@ -90,8 +146,10 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
   }
   const [copyStatus, setCopyStatus] = useState('')
   const [creating, setCreating] = useState(project === 'custom')
-  const [draft, setDraft] = useState<string>()
-  const [scriptDraft, setScriptDraft] = useState<string>()
+  const [title, setTitle] = useState('')
+  const [draft, setDraft] = useState('')
+  const [scriptDraft, setScriptDraft] = useState('')
+  const [testerList, setTesterList] = useState<string>()
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [selected, setSelected] = useState<{ session: string; step?: number }>()
@@ -117,22 +175,24 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
 
   async function save(event: FormEvent) {
     event.preventDefault()
-    const task = (draft ?? prompt).trim()
-    if (!task) return
+    const task = draft.trim()
+    if (!task || !title.trim() || saving) return
     setSaving(true)
     try {
-      const settings = { prompt: task, script: JSON.stringify(parseScript(scriptDraft ?? (project === "custom" ? published?.data.script ?? "" : JSON.stringify(template)))) }
+      const settings = { title: title.trim(), prompt: task, script: JSON.stringify(project === "custom" ? parseScript(scriptDraft) : template) }
       if (projectForScript(settings.script) !== project) {
         setMessage('Choose a prototype for this folder. Custom tests need a custom script.')
         return
       }
-      await createConfirmed(settings)
-      setDraft(undefined)
-      setScriptDraft(undefined)
-      setMessage('Usability test published. Share the tester link to collect a run.')
+      const studyId = await createConfirmed(settings)
+      setTitle('')
+      setDraft('')
+      setScriptDraft('')
+      setTesterList(studyId)
+      setMessage('Study published. Add testers below or copy the tester link to share it.')
       setCreating(false)
     } catch (error) {
-      setMessage(error instanceof SyntaxError ? 'Enter a valid JSON script.' : 'Could not save. Check the screen IDs and destinations, then try again.')
+      setMessage(error instanceof SyntaxError ? 'Check the JSON syntax and try again.' : 'Could not publish. Check the prototype’s screen IDs and button destinations, then try again.')
     } finally {
       setSaving(false)
     }
@@ -140,21 +200,62 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
 
   return <section className="project-tests">
     <header className="page-heading">
-      <h2>Usability tests</h2>
-      <div>
+      <h2>Studies</h2>
+      <div className="project-heading-actions">
+      {(project !== 'custom' || published) && <Link className="secondary" to={`/test?project=${project}&preview=1${published ? `&test=${encodeURIComponent(published.recordId)}` : ''}`}>Try as a tester</Link>}
       {project !== 'custom' && <button className="secondary" type="button" onClick={() => setGuideStep(0)}>Project guide</button>}
-      <button className="primary" type="button" onClick={() => { setCreating(!creating); setMessage('') }}>{creating ? 'Close setup' : '+ New usability test'}</button>
+      <button className="primary" type="button" onClick={() => { setCreating(!creating); setMessage('') }}>{creating ? 'Close study setup' : '+ New study'}</button>
     </div>
     </header>
     {guideStep !== null && <ProjectGuide project={project} step={guideStep} onStep={setGuideStep}
-      onSkip={closeGuide} onSetup={() => { closeGuide(); setDraft(presets[project][0]?.[1]); setCreating(true) }} />}
+      onSkip={closeGuide} onSetup={() => { closeGuide(); setTitle(presets[project][0]?.[0] ?? ''); setDraft(presets[project][0]?.[1] ?? ''); setCreating(true) }} />}
+    {creating && <form className="panel study-setup" onSubmit={save}>
+      <h3>Create a study</h3>
+      {presets[project].length > 0 && <div>
+        <label htmlFor="task-preset">Start with an example <small>(optional)</small></label>
+        <select id="task-preset" value="" onChange={event => {
+          const preset = presets[project].find(([, task]) => task === event.target.value)
+          if (preset) { setTitle(preset[0]); setDraft(preset[1]) }
+        }}>
+          <option value="" disabled>Choose a task</option>
+          {presets[project].map(([label, task]) => <option value={task} key={label}>{label}</option>)}
+        </select>
+      </div>}
+      <div>
+        <label htmlFor="study-title">Study name</label>
+        <input id="study-title" placeholder="e.g. Pickup booking test" maxLength={80} required value={title} onChange={event => setTitle(event.target.value)} />
+      </div>
+      <div>
+        <label htmlFor="prompt">What should testers do?</label>
+        <p id="task-hint">Describe the goal in language your testers use. Leave out the steps so you can see what they try.</p>
+        <textarea id="prompt" aria-describedby="task-hint" rows={2} placeholder="e.g. Book a pickup for 12:30 PM." maxLength={240} required value={draft} onChange={event => setDraft(event.target.value)} />
+      </div>
+      <div>
+        <label htmlFor={project === 'custom' ? 'script' : undefined}>Prototype</label>
+        {project === 'custom' ? <>
+          <p id="prototype-hint">Paste the JSON that defines your screens and where each button leads. The prototype starts at <code>home</code> and finishes at <code>done</code>.</p>
+          {!scriptDraft.trim() && <button className="secondary" type="button" onClick={() => {
+            setScriptDraft(starterScript)
+            if (!title.trim()) setTitle('Pickup booking test')
+            if (!draft.trim()) setDraft('Book a pickup for 12:30 PM.')
+          }}>Load a starter example</button>}
+          <textarea id="script" aria-describedby="prototype-hint" rows={6} maxLength={32000} value={scriptDraft} onChange={event => setScriptDraft(event.target.value)} required />
+        </> : <p>{template.name}</p>}
+      </div>
+      <footer className="form-row">
+        <p>Publish to get a shareable link and start adding testers.</p>
+        <button className="primary" disabled={saving || !title.trim() || !draft.trim() || (project === 'custom' && !scriptDraft.trim()) || status !== 'ready'}>{saving ? 'Publishing…' : 'Publish study'}</button>
+      </footer>
+    </form>}
+    {message && <p role="status">{message}</p>}
     {projectTests.length > 0 && <details className="study-folder" open>
-      <summary>Published tests</summary>
+      <summary>Published studies</summary>
       <ul className="published-test-list">{projectTests.map(record => {
         const path = `/test?project=${project}&test=${encodeURIComponent(record.recordId)}`
         return <li key={record.recordId}>
-          <span>{record.data.prompt}</span>
+          <div>{record.data.title && <strong>{record.data.title}</strong>}<p>{record.data.prompt}</p></div>
           <div className="published-test-actions">
+            <Link to={`${path}&preview=1`}>Try as a tester</Link>
             <Link to={path}>Open tester link →</Link>
             <button className="secondary" type="button" onClick={async () => {
               try {
@@ -164,24 +265,13 @@ function ProjectTests({ project, userId }: { project: Project; userId: string })
                 setCopyStatus('Could not copy. Open the tester link and copy it from the address bar.')
               }
             }}>Copy tester link</button>
+            <button className="secondary" aria-expanded={testerList === record.recordId} type="button" onClick={() => setTesterList(testerList === record.recordId ? undefined : record.recordId)}>Manage testers</button>
           </div>
+          {testerList === record.recordId && <StudyTesters studyId={record.recordId} />}
         </li>
       })}</ul>
       {copyStatus && <p role="status">{copyStatus}</p>}
     </details>}
-    {creating && <form className="panel task" onSubmit={save}>
-      {presets[project].length > 0 && <><label htmlFor="task-preset">Task presets</label>
-        <select id="task-preset" value="" onChange={event => { if (event.target.value) setDraft(event.target.value) }}>
-          <option value="" disabled>Choose a task</option>
-          {presets[project].map(([label, task]) => <option value={task} key={label}>{label}</option>)}
-        </select></>}
-      <label htmlFor="prompt">Task prompt</label>
-      <div className="form-row"><input id="prompt" maxLength={240} required value={draft ?? prompt} onChange={e => setDraft(e.target.value)} />
-        <button className="secondary" disabled={saving || !(draft ?? prompt).trim() || status !== 'ready'}>Publish test</button></div>
-      {project === 'custom' && <><label htmlFor="script">Prototype JSON</label>
-        <textarea id="script" rows={12} maxLength={32000} value={scriptDraft ?? (published ? JSON.stringify(activePrototype, null, 2) : '')} onChange={e => setScriptDraft(e.target.value)} required /></>}
-    </form>}
-    {message && <p role="status">{message}</p>}
     <div className="dashboard project-workspace-grid">
       <section className="panel">
         <h2>Test runs</h2>
@@ -233,8 +323,9 @@ function ProjectGuide({ project, step, onStep, onSkip, onSetup }: {
   const example = project === 'cafe' ? 'Reorder a matcha' : 'Add a tee and crewneck to the cart'
   const steps = [
     { title: 'Want a quick walkthrough?', description: `See how to set up and review a usability test for ${projectNames[project]}.` },
-    { title: 'Choose and publish a task', description: `Start with “${example}” or write your own. Publish it to generate a tester link.` },
-    { title: 'Share the tester link', description: 'Open the link with the tester account in another browser profile. The manager can watch the actions arrive as the tester completes the task.' },
+    { title: 'Create and publish a study', description: `Name your study, then start with “${example}” or write your own task. Choose Publish study to create a tester link.` },
+    { title: 'Try the task yourself', description: 'Choose Try as a tester to see the task and use the prototype. Preview actions stay in your tab and don’t appear in study results.' },
+    { title: 'Share the tester link', description: 'Add email addresses to the tester list, then copy and send the tester link. You can follow each tester’s actions as they complete the task.' },
     { title: 'Replay and review', description: 'Select a test run, then click a timeline step to replay it. Review the study findings after more testers finish.' },
   ]
   const current = steps[step]
@@ -249,7 +340,7 @@ function ProjectGuide({ project, step, onStep, onSkip, onSetup }: {
       <Button type="button" variant="secondary" onClick={onSkip}>Skip for now</Button>
       {step > 0 && <Button type="button" variant="secondary" onClick={() => onStep(step - 1)}>Back</Button>}
       <Button type="button" onClick={last ? onSetup : () => onStep(step + 1)}>
-        {last ? 'Set up this test' : step === 0 ? 'Show me around' : 'Next'}
+        {last ? 'Set up a study' : step === 0 ? 'Show me around' : 'Next'}
       </Button>
     </Modal.Footer>
   </Modal>
