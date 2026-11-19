@@ -12,18 +12,20 @@ import {
   CanvasRoom,
   CronRoom,
   JobRoom,
+  MSG,
   PresenceRoom,
   RecordRoom,
   resolveAppRole,
   workerErrorHandler,
   YjsRoom,
 } from 'deepspace/worker'
-import type { DOBindings, DOManifest, Job, JobContext } from 'deepspace/worker'
+import type { DOBindings, DOManifest, Job, JobContext, UserAttachment } from 'deepspace/worker'
 import { AI_CHATS_SCHEMA } from 'deepspace/schema'
 import { registerAgent } from './src/ai/agent.js'
 import { buildTools } from './src/ai/tools.js'
 import { tasks as cronTasks, runTask as runCronTask } from './src/cron.js'
 import { runJob } from './src/jobs.js'
+import { STUDY_MANAGER_ROLE } from './src/lib/study-roles.js'
 import { schemas } from './src/schemas.js'
 import { registerActionRoutes } from './src/server/action-routes.js'
 import {
@@ -47,6 +49,29 @@ export const __DO_MANIFEST__ = [
 export class AppRecordRoom extends RecordRoom<Env> {
   constructor(state: DurableObjectState, env: Env) {
     super(state, env, schemas, { ownerUserId: env.OWNER_USER_ID })
+  }
+
+  protected async onConnect(ws: WebSocket, user: UserAttachment) {
+    const connection = await super.onConnect(ws, user)
+    // Only the Worker can attach this role after verifying the demo account's token.
+    if (user.role !== STUDY_MANAGER_ROLE || connection.role === STUDY_MANAGER_ROLE || connection.role === 'admin') {
+      return connection
+    }
+
+    const at = new Date().toISOString()
+    this.sql.exec('UPDATE c_users SET col_role = ?, _updated_at = ? WHERE _row_id = ?', STUDY_MANAGER_ROLE, at, connection.userId)
+    ws.send(JSON.stringify({
+      type: MSG.USER_INFO,
+      payload: {
+        id: connection.userId,
+        name: user.userName,
+        email: user.userEmail,
+        imageUrl: user.userImageUrl,
+        role: STUDY_MANAGER_ROLE,
+        lastSeenAt: at,
+      },
+    }))
+    return { ...connection, role: STUDY_MANAGER_ROLE }
   }
 }
 

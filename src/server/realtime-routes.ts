@@ -8,9 +8,12 @@
  */
 
 import type { Context, Hono } from 'hono'
-import { authenticatedRoomRequest, resolveAppRole, verifyJwt } from 'deepspace/worker'
+import { authenticatedRoomRequest, isTestAccountClaims, resolveAppRole, verifyJwt } from 'deepspace/worker'
 import type { JwtVerifierConfig, VerifyResult } from 'deepspace/worker'
 import type { AppContext, Env } from '../../worker.js'
+import { STUDY_MANAGER_ROLE } from '../lib/study-roles.js'
+
+const REVIEW_MANAGER_EMAIL = 'taskreplay-review-manager@deepspace.test'
 
 function jwtConfig(env: Env): JwtVerifierConfig {
   return { publicKey: env.AUTH_JWT_PUBLIC_KEY, issuer: env.AUTH_JWT_ISSUER }
@@ -123,7 +126,11 @@ async function resolveDocsYjsRole(
 export function registerRealtimeRoutes(app: Hono<AppContext>): void {
   app.get(
     '/ws/:roomId',
-    wsRoute((env) => env.RECORD_ROOMS),
+    wsRoute((env) => env.RECORD_ROOMS, (auth) => ({
+      role: isTestAccountClaims(auth.claims) && auth.claims.email?.toLowerCase() === REVIEW_MANAGER_EMAIL
+        ? STUDY_MANAGER_ROLE
+        : undefined,
+    })),
   )
 
   app.get('/ws/yjs/:docId', async (c) => {
